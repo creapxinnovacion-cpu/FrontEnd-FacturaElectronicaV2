@@ -13,7 +13,19 @@ import {
 export default function DteForm({ defaultTipoDte }) {
   // --- STATE ---
   const [items, setItems] = useState([
-    { id: 1, unidadMedida: "Unidad", descripcion: "Producto Ejemplo", cantidad: 1, precio: 0.00, total: 0.00 }
+    { 
+      id: 1, 
+      unidadMedida: "Unidad", 
+      descripcion: "Producto Ejemplo", 
+      cantidad: 1, 
+      precio: 0.00, 
+      total: 0.00,
+      subTotalNoSujeto: 0,
+      subTotalExento: 0,
+      subTotalGravado: 0,
+      descuento: 0,
+      ventas: 0
+    }
   ]);
 
   const [emisor, setEmisor] = useState({
@@ -30,11 +42,14 @@ export default function DteForm({ defaultTipoDte }) {
   });
 
   const [receptor, setReceptor] = useState({
-    tipoDoc: "",
+    tipoDoc: "NIT",
     numDoc: "",
     nombre: "",
-    departamento: "",
-    municipio: "",
+    nrc: "",
+    nombreComercial: "",
+    actividadEconomica: "",
+    departamento: "06",
+    municipio: "23",
     complemento: "",
     correo: "",
     telefono: ""
@@ -55,6 +70,13 @@ export default function DteForm({ defaultTipoDte }) {
 
   const [observaciones, setObservaciones] = useState("");
 
+  const [docRelacionado, setDocRelacionado] = useState({
+    tipoDoc: "Comprobante de Crédito Fiscal",
+    tipoGeneracion: "Electrónica",
+    codigoGeneracion: "",
+    fechaGeneracion: ""
+  });
+
   // --- LOGIC ---
   const agregarItem = () => {
     setItems([...items, { id: Date.now(), unidadMedida: "Unidad", descripcion: "", cantidad: 1, precio: 0, total: 0 }]);
@@ -68,8 +90,17 @@ export default function DteForm({ defaultTipoDte }) {
     setItems(items.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        if (field === 'cantidad' || field === 'precio') {
-          updated.total = updated.cantidad * updated.precio;
+        if (field === 'cantidad' || field === 'precio' || field === 'subTotalGravado' || field === 'descuento') {
+          // Si estamos en Nota de Crédito o Débito, el total puede ser la suma de los desgloses
+          if (emisor.tipoDte === "Nota de Crédito" || emisor.tipoDte === "Nota de Débito") {
+            updated.total = (updated.subTotalNoSujeto || 0) + (updated.subTotalExento || 0) + (updated.subTotalGravado || 0);
+          } else if (emisor.tipoDte === "Factura de Sujeto Excluido") {
+            updated.ventas = (updated.cantidad * updated.precio) - (updated.descuento || 0);
+            updated.total = updated.ventas;
+          } else {
+            updated.total = updated.cantidad * updated.precio;
+            updated.subTotalGravado = updated.total;
+          }
         }
         return updated;
       }
@@ -77,9 +108,41 @@ export default function DteForm({ defaultTipoDte }) {
     }));
   };
 
-  const subTotal = items.reduce((acc, item) => acc + item.total, 0);
-  const retencionIva = 0; 
-  const totalPagar = subTotal - retencionIva;
+  const isNota = emisor.tipoDte === "Nota de Crédito" || emisor.tipoDte === "Nota de Débito";
+  const isSujetoExcluido = emisor.tipoDte === "Factura de Sujeto Excluido";
+
+  const totalNoSujeto = items.reduce((acc, item) => acc + (item.subTotalNoSujeto || 0), 0);
+  const totalExento = items.reduce((acc, item) => acc + (item.subTotalExento || 0), 0);
+  const totalGravado = items.reduce((acc, item) => acc + (isNota ? (item.subTotalGravado || 0) : item.total), 0);
+  
+  const [ivaRetenido, setIvaRetenido] = useState(0);
+  const [ivaPercibido, setIvaPercibido] = useState(0);
+  const [retencionRenta, setRetencionRenta] = useState(0);
+  const [retencionRentaPercent, setRetencionRentaPercent] = useState(10);
+
+  const totalOperaciones = items.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
+  const totalDescuento = items.reduce((acc, item) => acc + (item.descuento || 0), 0);
+  
+  const subTotalGeral = isSujetoExcluido ? (totalOperaciones - totalDescuento) : totalGravado; 
+  
+  // Efecto para calcular retención de renta automáticamente si es Sujeto Excluido
+  useEffect(() => {
+    if (isSujetoExcluido) {
+      setRetencionRenta((subTotalGeral * retencionRentaPercent) / 100);
+    }
+  }, [subTotalGeral, retencionRentaPercent, isSujetoExcluido]);
+
+  const totalPagar = isSujetoExcluido 
+    ? (subTotalGeral - retencionRenta)
+    : (totalGravado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
+
+  const departamentos = [
+    { id: "06", nombre: "06 - SAN SALVADOR" }
+  ];
+
+  const municipios = [
+    { id: "23", nombre: "23 - SAN SALVADOR CENTRO" }
+  ];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12">
@@ -157,71 +220,194 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
             </div>
           </section>
+          
+          {isNota && (
+            <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-purple-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
+                <DocumentTextIcon className="w-5 h-5 text-purple-400" />
+                <h3 className="font-bold text-gray-700">Información del Documento Relacionado</h3>
+              </div>
+              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      value={docRelacionado.tipoDoc}
+                      onChange={(e) => setDocRelacionado({...docRelacionado, tipoDoc: e.target.value})}
+                    >
+                      <option>Comprobante de Crédito Fiscal</option>
+                      <option>Factura de Consumidor Final</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Generación</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      value={docRelacionado.tipoGeneracion}
+                      onChange={(e) => setDocRelacionado({...docRelacionado, tipoGeneracion: e.target.value})}
+                    >
+                      <option>Electrónica</option>
+                      <option>Papel / Otros</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Código de Generación / Correlativo</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ingrese el número de documento" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      value={docRelacionado.codigoGeneracion}
+                      onChange={(e) => setDocRelacionado({...docRelacionado, codigoGeneracion: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Fecha de Generación</label>
+                    <input 
+                      type="date" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      value={docRelacionado.fechaGeneracion}
+                      onChange={(e) => setDocRelacionado({...docRelacionado, fechaGeneracion: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* SECCIÓN RECEPTOR */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
               <UserIcon className="w-5 h-5 text-gray-400" />
-              <h3 className="font-bold text-gray-700">Información del Receptor</h3>
+              <h3 className="font-bold text-gray-700">{isSujetoExcluido ? 'Sujeto Excluido' : 'Información del Receptor'}</h3>
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento (Opcional)</label>
-                  <select 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                    value={receptor.tipoDoc}
-                    onChange={(e) => setReceptor({...receptor, tipoDoc: e.target.value})}
-                  >
-                    <option value="">-- Seleccione --</option>
-                    <option value="NIT">NIT</option>
-                    <option value="DUI">DUI</option>
-                    <option value="PASAPORTE">Pasaporte</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo Documento</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                      value={receptor.tipoDoc}
+                      onChange={(e) => setReceptor({...receptor, tipoDoc: e.target.value})}
+                    >
+                      <option>NIT</option>
+                      <option>DUI</option>
+                      <option>Otro</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">{receptor.tipoDoc}</label>
+                    <input 
+                      type="text" 
+                      placeholder={`Digite el número de ${receptor.tipoDoc}`}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      value={receptor.numDoc}
+                      onChange={(e) => setReceptor({...receptor, numDoc: e.target.value})}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Nombre / Razón Social</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">{isSujetoExcluido ? 'Nombre del Receptor' : 'Nombre del Cliente'}</label>
                   <input 
                     type="text" 
-                    placeholder="Nombre completo del receptor" 
+                    placeholder={isSujetoExcluido ? 'Nombre completo del receptor' : 'Nombre completo del cliente'}
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.nombre}
                     onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Departamento</label>
-                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Municipio</label>
-                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                  </div>
+                {!isSujetoExcluido && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
+                      <input 
+                        type="text" 
+                        placeholder="Número de NRC" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        value={receptor.nrc}
+                        onChange={(e) => setReceptor({...receptor, nrc: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-500 ml-1">Nombre Comercial</label>
+                      <input 
+                        type="text" 
+                        placeholder="Personalizar nombre comercial" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        value={receptor.nombreComercial}
+                        onChange={(e) => setReceptor({...receptor, nombreComercial: e.target.value})}
+                      />
+                    </div>
+                  </>
+                )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Actividad Económica</label>
+                  <input 
+                    type="text" 
+                    placeholder="Actividad económica" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    value={receptor.actividadEconomica}
+                    onChange={(e) => setReceptor({...receptor, actividadEconomica: e.target.value})}
+                  />
                 </div>
               </div>
               <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Número de Documento</label>
-                  <input 
-                    type="text" 
-                    placeholder="0000-000000-000-0"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                    value={receptor.numDoc}
-                    onChange={(e) => setReceptor({...receptor, numDoc: e.target.value})}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Departamento</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.departamento}
+                      onChange={(e) => setReceptor({...receptor, departamento: e.target.value})}
+                    >
+                      {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Municipio</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.municipio}
+                      onChange={(e) => setReceptor({...receptor, municipio: e.target.value})}
+                    >
+                      {municipios.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Correo Electrónico</label>
-                  <input type="email" placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Complemento Dirección</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
                   <textarea 
                     placeholder="Digite el complemento de la dirección" 
                     rows="2"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                    value={receptor.complemento}
+                    onChange={(e) => setReceptor({...receptor, complemento: e.target.value})}
                   ></textarea>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Correo electrónico</label>
+                    <input 
+                      type="email" 
+                      placeholder="ejemplo@correo.com" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.correo}
+                      onChange={(e) => setReceptor({...receptor, correo: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Teléfono</label>
+                    <input 
+                      type="text" 
+                      placeholder="7000-0000" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.telefono}
+                      onChange={(e) => setReceptor({...receptor, telefono: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -246,11 +432,26 @@ export default function DteForm({ defaultTipoDte }) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] text-gray-400 uppercase tracking-[0.15em] border-b border-gray-50">
-                    <th className="py-4 px-8 font-bold">Unidad</th>
-                    <th className="py-4 px-4 font-bold">Descripción</th>
-                    <th className="py-4 px-4 font-bold w-24">Cant.</th>
-                    <th className="py-4 px-4 font-bold w-32">Precio</th>
-                    <th className="py-4 px-4 font-bold w-32">Subtotal</th>
+                    <th className="py-4 px-8 font-bold">{isSujetoExcluido ? 'Descripción' : (isNota ? 'Cantidad' : 'Unidad de Medida')}</th>
+                    <th className="py-4 px-4 font-bold">{isSujetoExcluido ? 'Unidad de Medida' : 'Descripción'}</th>
+                    <th className="py-4 px-4 font-bold w-24">{isSujetoExcluido ? 'Cantidad' : (isNota ? 'Precio' : 'Cantidad')}</th>
+                    {!isNota && <th className="py-4 px-4 font-bold w-32">{isSujetoExcluido ? 'Precio' : 'Precio'}</th>}
+                    {isNota ? (
+                      <>
+                        <th className="py-4 px-4 font-bold w-32 text-center">No sujeto</th>
+                        <th className="py-4 px-4 font-bold w-32 text-center">Exento</th>
+                        <th className="py-4 px-4 font-bold w-32 text-center">Gravado</th>
+                      </>
+                    ) : (
+                      isSujetoExcluido ? (
+                        <>
+                          <th className="py-4 px-4 font-bold w-32 text-center text-[8px]">Descuento, Bonificación, Rebajas por ítem</th>
+                          <th className="py-4 px-4 font-bold w-32 text-center">Ventas</th>
+                        </>
+                      ) : (
+                        <th className="py-4 px-4 font-bold w-32">Sub Total</th>
+                      )
+                    )}
                     <th className="py-4 px-8 w-10"></th>
                   </tr>
                 </thead>
@@ -258,41 +459,135 @@ export default function DteForm({ defaultTipoDte }) {
                   {items.map((item) => (
                     <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 px-8">
-                        <select className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none">
-                          <option>Unidad</option>
-                          <option>Servicio</option>
-                          <option>Peso</option>
-                        </select>
+                        {isSujetoExcluido ? (
+                          <input 
+                            type="text" 
+                            placeholder="Descripción..." 
+                            className="w-full bg-transparent border-none text-sm text-gray-800 placeholder-gray-300 focus:ring-0 outline-none"
+                            value={item.descripcion}
+                            onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)}
+                          />
+                        ) : (
+                          isNota ? (
+                            <input 
+                              type="number" 
+                              className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700"
+                              value={item.cantidad}
+                              onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
+                            />
+                          ) : (
+                            <select 
+                              className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none"
+                              value={item.unidadMedida}
+                              onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
+                            >
+                              <option>Unidad</option>
+                              <option>Servicio</option>
+                              <option>Peso</option>
+                            </select>
+                          )
+                        )}
                       </td>
                       <td className="py-4 px-4">
-                        <input 
-                          type="text" 
-                          placeholder="Descripción del producto..." 
-                          className="w-full bg-transparent border-none text-sm text-gray-800 placeholder-gray-300 focus:ring-0 outline-none"
-                          value={item.descripcion}
-                          onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)}
-                        />
-                      </td>
-                      <td className="py-4 px-4">
-                        <input 
-                          type="number" 
-                          className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500/20"
-                          value={item.cantidad}
-                          onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
-                        />
+                        {isSujetoExcluido ? (
+                          <select 
+                            className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none"
+                            value={item.unidadMedida}
+                            onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
+                          >
+                            <option>Unidad</option>
+                            <option>Servicio</option>
+                            <option>Peso</option>
+                          </select>
+                        ) : (
+                          <input 
+                            type="text" 
+                            placeholder="Descripción del producto..." 
+                            className="w-full bg-transparent border-none text-sm text-gray-800 placeholder-gray-300 focus:ring-0 outline-none"
+                            value={item.descripcion}
+                            onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)}
+                          />
+                        )}
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-1">
-                          <span className="text-gray-400 text-xs">$</span>
-                          <input 
-                            type="number" 
-                            className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
-                            value={item.precio}
-                            onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
-                          />
+                          {(isSujetoExcluido || !isNota) ? (
+                            <input 
+                              type="number" 
+                              className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500/20"
+                              value={item.cantidad}
+                              onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
+                            />
+                          ) : (
+                            <>
+                              <span className="text-gray-400 text-xs">$</span>
+                              <input 
+                                type="number" 
+                                className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
+                                value={item.precio}
+                                onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
+                              />
+                            </>
+                          )}
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-sm font-bold text-gray-900">$ {item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      {!isNota && (
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-400 text-xs">$</span>
+                            <input 
+                              type="number" 
+                              className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
+                              value={item.precio}
+                              onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </td>
+                      )}
+                      {isNota ? (
+                        <>
+                          <td className="py-4 px-4">
+                            <input 
+                              type="number" 
+                              className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-purple-200 outline-none"
+                              value={item.subTotalNoSujeto}
+                              onChange={(e) => updateItem(item.id, 'subTotalNoSujeto', parseFloat(e.target.value) || 0)}
+                            />
+                          </td>
+                          <td className="py-4 px-4">
+                            <input 
+                              type="number" 
+                              className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-purple-200 outline-none"
+                              value={item.subTotalExento}
+                              onChange={(e) => updateItem(item.id, 'subTotalExento', parseFloat(e.target.value) || 0)}
+                            />
+                          </td>
+                          <td className="py-4 px-4">
+                            <input 
+                              type="number" 
+                              className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-purple-200 outline-none font-bold text-gray-900"
+                              value={item.subTotalGravado}
+                              onChange={(e) => updateItem(item.id, 'subTotalGravado', parseFloat(e.target.value) || 0)}
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        isSujetoExcluido ? (
+                          <>
+                            <td className="py-4 px-4">
+                              <input 
+                                type="number" 
+                                className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-blue-200 outline-none"
+                                value={item.descuento}
+                                onChange={(e) => updateItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
+                              />
+                            </td>
+                            <td className="py-4 px-4 text-sm font-bold text-gray-900 text-right">$ {item.ventas.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          </>
+                        ) : (
+                          <td className="py-4 px-4 text-sm font-bold text-gray-900">$ {item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        )
+                      )}
                       <td className="py-4 px-8 text-right">
                         <button 
                           onClick={() => eliminarItem(item.id)}
@@ -308,36 +603,75 @@ export default function DteForm({ defaultTipoDte }) {
             </div>
           </section>
 
-          {/* SECCIÓN CONDICIONES Y RESPONSABLES */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <CreditCardIcon className="w-5 h-5 text-gray-400" />
-                <h3 className="font-bold text-gray-700">Condición y Pago</h3>
+                <h3 className="font-bold text-gray-700">Condición de la Operación</h3>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500">Condición</label>
-                  <select className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none">
+                  <select 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    value={pago.condicion}
+                    onChange={(e) => setPago({...pago, condicion: e.target.value})}
+                  >
                     <option>Contado</option>
                     <option>Crédito</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Forma de Pago</label>
-                  <select className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none">
+                  <label className="text-xs font-semibold text-gray-500">Forma Pago</label>
+                  <select 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    value={pago.metodo}
+                    onChange={(e) => setPago({...pago, metodo: e.target.value})}
+                  >
                     <option>Billetes y monedas</option>
                     <option>Tarjeta de Crédito</option>
                     <option>Transferencia</option>
                   </select>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500">Monto</label>
+                <input 
+                  type="number" 
+                  placeholder="Monto Pago" 
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                />
+              </div>
+              
+              <div className="overflow-x-auto pt-4">
+                <table className="w-full text-[10px] text-left">
+                  <thead>
+                    <tr className="text-gray-400 uppercase font-bold border-b border-gray-50">
+                      <th className="pb-2 pr-2">Forma de Pago</th>
+                      <th className="pb-2 px-2 text-right">Monto</th>
+                      <th className="pb-2 px-2">No. Documento</th>
+                      <th className="pb-2 px-2">Plazo</th>
+                      <th className="pb-2 pl-2">Período</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-50/50">
+                      <td className="py-2 pr-2 text-gray-600">{pago.metodo}</td>
+                      <td className="py-2 px-2 text-right font-medium">$ {totalPagar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-2 px-2 text-gray-400 italic">N/A</td>
+                      <td className="py-2 px-2 text-gray-400 italic">N/A</td>
+                      <td className="py-2 pl-2 text-gray-400 italic">N/A</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
               <div className="space-y-1.5 pt-2">
                 <label className="text-xs font-semibold text-gray-500">Observaciones</label>
                 <textarea 
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
-                  rows="3"
-                  placeholder="Notas adicionales sobre este DTE..."
+                  rows={isNota ? 6 : 3}
+                  placeholder="Observaciones al documento"
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
                 ></textarea>
@@ -347,28 +681,63 @@ export default function DteForm({ defaultTipoDte }) {
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <InformationCircleIcon className="w-5 h-5 text-gray-400" />
-                <h3 className="font-bold text-gray-700">Responsables</h3>
+                <h3 className="font-bold text-gray-700">{isNota ? 'Información obligatoria, recepción entrega documento' : 'Datos adicionales entrega'}</h3>
               </div>
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Emite el documento</p>
-                  <p className="text-sm font-bold text-gray-800">{responsables.emisorNombre}</p>
-                  <p className="text-xs text-gray-500">Doc: {responsables.emisorDoc}</p>
-                </div>
+              <div className="space-y-6">
                 <div className="space-y-3">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Recibe el documento</p>
-                  <input 
-                    type="text" 
-                    placeholder="Nombre de quien recibe" 
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:border-blue-500"
-                    onChange={(e) => setResponsables({...responsables, receptorNombre: e.target.value})}
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Número de documento" 
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:border-blue-500"
-                    onChange={(e) => setResponsables({...responsables, receptorDoc: e.target.value})}
-                  />
+                  <p className="text-[10px] font-bold text-blue-600 uppercase">
+                    {isNota ? 'Responsable por parte del Emisor' : 'Responsable de emitir el documento'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">N°. Documento</label>
+                      <input 
+                        type="text" 
+                        placeholder="Responsable de emitir" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                        value={responsables.emisorDoc}
+                        onChange={(e) => setResponsables({...responsables, emisorDoc: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">Nombre</label>
+                      <input 
+                        type="text" 
+                        placeholder="Responsable de emitir" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                        value={responsables.emisorNombre}
+                        onChange={(e) => setResponsables({...responsables, emisorNombre: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-gray-50">
+                  <p className="text-[10px] font-bold text-gray-600 uppercase">
+                    {isNota ? 'Responsable por parte del Receptor' : 'Responsable de recibir el documento'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">N°. Documento</label>
+                      <input 
+                        type="text" 
+                        placeholder="Responsable de recibir" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                        value={responsables.receptorDoc}
+                        onChange={(e) => setResponsables({...responsables, receptorDoc: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">Nombre</label>
+                      <input 
+                        type="text" 
+                        placeholder="Responsable de recibir" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                        value={responsables.receptorNombre}
+                        onChange={(e) => setResponsables({...responsables, receptorNombre: e.target.value})}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -385,18 +754,83 @@ export default function DteForm({ defaultTipoDte }) {
                 Resumen de Operación
               </h3>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm font-medium">Subtotal Operación</span>
-                  <span className="text-lg font-semibold">$ {subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-gray-400 text-sm font-medium">
+                    {isSujetoExcluido ? 'Total de Operaciones' : (isNota ? 'Total Gravadas' : 'Total Gravado')}
+                  </span>
+                  <span className="text-lg font-semibold">$ {isSujetoExcluido ? totalOperaciones.toLocaleString('en-US', { minimumFractionDigits: 2 }) : totalGravado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between items-center text-red-400">
-                  <span className="text-sm font-medium">Retención IVA (1%)</span>
-                  <span className="text-lg font-semibold">- $ {retencionIva.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+
+                {isSujetoExcluido && (
+                  <>
+                    <div className="flex justify-between items-center text-blue-300">
+                      <span className="text-sm font-medium">Descuento Global</span>
+                      <span className="text-lg font-semibold">$ 0.00</span>
+                    </div>
+                    <div className="flex justify-between items-center text-blue-300">
+                      <span className="text-sm font-medium">Total monto de descuento</span>
+                      <span className="text-lg font-semibold">$ {totalDescuento.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </>
+                )}
+
+                {!isSujetoExcluido && (
+                  <>
+                    <div className="flex justify-between items-center text-red-400">
+                      <span className="text-sm font-medium">IVA Retenido</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs">$</span>
+                        <input 
+                          type="number" 
+                          className="w-20 bg-white/10 border-none rounded px-2 py-0.5 text-right text-sm font-semibold outline-none focus:ring-1 focus:ring-red-400"
+                          value={ivaRetenido}
+                          onChange={(e) => setIvaRetenido(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-green-400">
+                      <span className="text-sm font-medium">{isNota ? 'Percepción IVA' : 'IVA Percibido'}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs">$</span>
+                        <input 
+                          type="number" 
+                          className="w-20 bg-white/10 border-none rounded px-2 py-0.5 text-right text-sm font-semibold outline-none focus:ring-1 focus:ring-green-400"
+                          value={ivaPercibido}
+                          onChange={(e) => setIvaPercibido(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between items-center border-t border-white/5 pt-4">
+                  <span className="text-gray-400 text-sm font-medium">Sub Total</span>
+                  <span className="text-lg font-semibold">$ {subTotalGeral.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
+
+                {isSujetoExcluido && (
+                  <div className="flex justify-between items-center text-orange-400">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Retención Renta</span>
+                      <div className="flex items-center bg-white/10 rounded px-1">
+                        <input 
+                          type="number" 
+                          className="w-8 bg-transparent border-none p-0 text-[10px] text-center font-bold outline-none"
+                          value={retencionRentaPercent}
+                          onChange={(e) => setRetencionRentaPercent(parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="text-[10px] opacity-50">%</span>
+                      </div>
+                    </div>
+                    <span className="text-lg font-semibold">$ {retencionRenta.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
                 
                 <div className="border-t border-white/10 pt-6 space-y-2">
-                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center mb-4">Total a Liquidar</p>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center mb-4">
+                    {isSujetoExcluido ? 'Total a pagar' : (isNota ? 'Monto Total de la operación' : 'Total a Pagar')}
+                  </p>
                   <div className="flex justify-center items-baseline gap-1">
                     <span className="text-2xl font-light text-blue-400">$</span>
                     <span className="text-5xl font-black text-white tracking-tighter">
