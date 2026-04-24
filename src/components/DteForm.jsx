@@ -12,20 +12,22 @@ import {
 
 export default function DteForm({ defaultTipoDte }) {
   // --- STATE ---
+  const createEmptyItem = (id = Date.now()) => ({
+    id,
+    unidadMedida: "Unidad",
+    descripcion: "",
+    cantidad: 1,
+    precio: 0,
+    total: 0,
+    subTotalNoSujeto: 0,
+    subTotalExento: 0,
+    subTotalGravado: 0,
+    descuento: 0,
+    ventas: 0,
+  });
+
   const [items, setItems] = useState([
-    { 
-      id: 1, 
-      unidadMedida: "Unidad", 
-      descripcion: "Producto Ejemplo", 
-      cantidad: 1, 
-      precio: 0.00, 
-      total: 0.00,
-      subTotalNoSujeto: 0,
-      subTotalExento: 0,
-      subTotalGravado: 0,
-      descuento: 0,
-      ventas: 0
-    }
+    { ...createEmptyItem(1), descripcion: "Producto Ejemplo" }
   ]);
 
   const [emisor, setEmisor] = useState({
@@ -79,7 +81,7 @@ export default function DteForm({ defaultTipoDte }) {
 
   // --- LOGIC ---
   const agregarItem = () => {
-    setItems([...items, { id: Date.now(), unidadMedida: "Unidad", descripcion: "", cantidad: 1, precio: 0, total: 0 }]);
+    setItems([...items, createEmptyItem()]);
   };
 
   const eliminarItem = (id) => {

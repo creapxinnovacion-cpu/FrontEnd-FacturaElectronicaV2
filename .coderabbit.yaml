@@ -1,0 +1,28 @@
+# CodeRabbit Configuration
+language: "es-ES"
+tone_instructions: "Sé profesional, conciso y enfócate en la seguridad, el rendimiento y las mejores prácticas de React y Tailwind CSS. Las respuestas deben ser en español."
+
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  auto_title: true
+  auto_desc: true
+
+path_filters:
+  exclude:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "package-lock.json"
+    - "yarn.lock"
+    - "pnpm-lock.yaml"
+    - "**/*.test.js"
+    - "**/*.test.jsx"
+    - "**/*.spec.js"
+    - "**/*.spec.jsx"
+
+unit_tests:
+  enabled: true
+
+docstrings:
+  enabled: true
