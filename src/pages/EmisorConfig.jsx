@@ -1,6 +1,7 @@
 import Select from "../utils/ui/Select";
 import { CAT_GIROS } from "../utils/catalogos/catGiro";
-import { CAT_DEPTO } from "../utils/catalogos/CatDepto";
+import { CAT_DEPTO } from "../utils/catalogos/catDepto";
+import { CAT_MUNICIPIO } from "../utils/catalogos/catMunicipio";
 import { useState, useEffect } from "react";
 import Input from "../utils/ui/Input";
 import { emisorService } from "../services/api/emisor.service";
@@ -22,6 +23,8 @@ export default function EmisorConfig() {
     cod_actividad: "",
     desc_actividad: "",
     direccion: "",
+    departamento: "",
+    municipio: "",
     correo: "",
     telefono: "",
     passwordCertificado: "",
@@ -51,6 +54,8 @@ export default function EmisorConfig() {
           cod_actividad: data.cod_actividad,
           desc_actividad: data.desc_actividad,
           direccion: data.direccion,
+          departamento: data.departamento || "",
+          municipio: data.municipio || "",
           correo: data.correo,
           telefono: data.telefono,
         });
@@ -109,6 +114,8 @@ export default function EmisorConfig() {
         cod_actividad: form.cod_actividad,
         desc_actividad: form.cod_actividad, // Simplificado
         direccion: form.direccion,
+        departamento: form.departamento,
+        municipio: form.municipio,
         correo: form.correo,
         telefono: form.telefono,
       };
@@ -161,13 +168,32 @@ export default function EmisorConfig() {
 
       {/* ===== DATOS EMISOR ===== */}
       <section className="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
-        <h3 className="text-gray-900 text-lg font-semibold">Datos del emisor</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h3 className="text-black text-lg font-semibold">Datos del emisor</h3>
+        <div className="grid text-black  grid-cols-1 md:grid-cols-2 gap-4">
           <Input name="nombre" value={form.nombre} placeholder="Razón social *" onChange={handleChange} error={errores.nombre} />
           <Input name="nombre_comercial" value={form.nombre_comercial} placeholder="Nombre comercial" onChange={handleChange} />
           <Input name="nit" value={form.nit} placeholder="NIT *" onChange={handleChange} error={errores.nit} />
           <Input name="nrc" value={form.nrc} placeholder="NRC *" onChange={handleChange} error={errores.nrc} />
           <Select name="cod_actividad" value={form.cod_actividad} placeholder="Seleccione giro *" options={CAT_GIROS} onChange={handleChange} error={errores.cod_actividad} />
+          <Select 
+            name="departamento" 
+            value={form.departamento} 
+            placeholder="Seleccione departamento *" 
+            options={CAT_DEPTO} 
+            onChange={(e) => {
+              const depto = e.target.value;
+              setForm(prev => ({ ...prev, departamento: depto, municipio: CAT_MUNICIPIO[depto]?.[0]?.codigo || "" }));
+            }} 
+            error={errores.departamento} 
+          />
+          <Select 
+            name="municipio" 
+            value={form.municipio} 
+            placeholder="Seleccione municipio *" 
+            options={CAT_MUNICIPIO[form.departamento] || []} 
+            onChange={handleChange} 
+            error={errores.municipio} 
+          />
           <Input name="correo" value={form.correo} placeholder="Correo electrónico" onChange={handleChange} error={errores.correo} />
           <Input name="telefono" value={form.telefono} placeholder="Teléfono" onChange={handleChange} />
         </div>

@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { 
-  PlusIcon, 
-  TrashIcon, 
-  DocumentTextIcon, 
-  UserIcon, 
-  MapPinIcon, 
-  CreditCardIcon, 
+import { CAT_DEPTO } from "../utils/catalogos/catDepto";
+import { CAT_MUNICIPIO } from "../utils/catalogos/catMunicipio";
+
+import {
+  PlusIcon,
+  TrashIcon,
+  DocumentTextIcon,
+  UserIcon,
+  MapPinIcon,
+  CreditCardIcon,
   InformationCircleIcon,
   ShoppingCartIcon
 } from "@heroicons/react/24/outline";
@@ -116,7 +119,7 @@ export default function DteForm({ defaultTipoDte }) {
   const totalNoSujeto = items.reduce((acc, item) => acc + (item.subTotalNoSujeto || 0), 0);
   const totalExento = items.reduce((acc, item) => acc + (item.subTotalExento || 0), 0);
   const totalGravado = items.reduce((acc, item) => acc + (isNota ? (item.subTotalGravado || 0) : item.total), 0);
-  
+
   const [ivaRetenido, setIvaRetenido] = useState(0);
   const [ivaPercibido, setIvaPercibido] = useState(0);
   const [retencionRenta, setRetencionRenta] = useState(0);
@@ -124,9 +127,9 @@ export default function DteForm({ defaultTipoDte }) {
 
   const totalOperaciones = items.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
   const totalDescuento = items.reduce((acc, item) => acc + (item.descuento || 0), 0);
-  
-  const subTotalGeral = isSujetoExcluido ? (totalOperaciones - totalDescuento) : totalGravado; 
-  
+
+  const subTotalGeral = isSujetoExcluido ? (totalOperaciones - totalDescuento) : totalGravado;
+
   // Efecto para calcular retención de renta automáticamente si es Sujeto Excluido
   useEffect(() => {
     if (isSujetoExcluido) {
@@ -134,20 +137,15 @@ export default function DteForm({ defaultTipoDte }) {
     }
   }, [subTotalGeral, retencionRentaPercent, isSujetoExcluido]);
 
-  const totalPagar = isSujetoExcluido 
+  const totalPagar = isSujetoExcluido
     ? (subTotalGeral - retencionRenta)
     : (totalGravado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
 
-  const departamentos = [
-    { id: "06", nombre: "06 - SAN SALVADOR" }
-  ];
-
-  const municipios = [
-    { id: "23", nombre: "23 - SAN SALVADOR CENTRO" }
-  ];
+  const departamentos = CAT_DEPTO;
+  const municipios = CAT_MUNICIPIO[receptor.departamento] || [];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-12">
+    <div className="min-h-screen bg-gray-800 pb-12">
       {/* HEADER SECTION */}
       <div className="bg-[#1A2B3C] text-white pt-8 pb-16 px-6 mb-[-4rem]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -170,10 +168,10 @@ export default function DteForm({ defaultTipoDte }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* COLUMNA IZQUIERDA (CONTENIDO PRINCIPAL) */}
         <div className="lg:col-span-8 space-y-8">
-          
+
           {/* SECCIÓN EMISOR */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-blue-50/30 px-8 py-3 border-b border-gray-100 flex justify-between items-center">
@@ -202,7 +200,7 @@ export default function DteForm({ defaultTipoDte }) {
                   </div>
                 </div>
               </div>
-              
+
               <div className="pt-4 border-t border-gray-50 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex items-start gap-3">
                   <MapPinIcon className="w-4 h-4 text-gray-400 mt-0.5" />
@@ -222,32 +220,32 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
             </div>
           </section>
-          
+          {/*section de la nota de credito o debito*/}
           {isNota && (
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="bg-purple-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
                 <DocumentTextIcon className="w-5 h-5 text-purple-400" />
-                <h3 className="font-bold text-gray-700">Información del Documento Relacionado</h3>
+                <h3 className="font-bold text-black">Información del Documento Relacionado</h3>
               </div>
               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                    <label className="text-xs font-semibold text-black ml-1">Tipo de Documento</label>
+                    <select
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
                       value={docRelacionado.tipoDoc}
-                      onChange={(e) => setDocRelacionado({...docRelacionado, tipoDoc: e.target.value})}
+                      onChange={(e) => setDocRelacionado({ ...docRelacionado, tipoDoc: e.target.value })}
                     >
                       <option>Comprobante de Crédito Fiscal</option>
                       <option>Factura de Consumidor Final</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Generación</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                    <label className="text-xs font-semibold text-black ml-1">Tipo de Generación</label>
+                    <select
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
                       value={docRelacionado.tipoGeneracion}
-                      onChange={(e) => setDocRelacionado({...docRelacionado, tipoGeneracion: e.target.value})}
+                      onChange={(e) => setDocRelacionado({ ...docRelacionado, tipoGeneracion: e.target.value })}
                     >
                       <option>Electrónica</option>
                       <option>Papel / Otros</option>
@@ -256,22 +254,22 @@ export default function DteForm({ defaultTipoDte }) {
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Código de Generación / Correlativo</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ingrese el número de documento" 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                    <label className="text-xs font-semibold text-black ml-1">Código de Generación / Correlativo</label>
+                    <input
+                      type="text"
+                      placeholder="Ingrese el número de documento"
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
                       value={docRelacionado.codigoGeneracion}
-                      onChange={(e) => setDocRelacionado({...docRelacionado, codigoGeneracion: e.target.value})}
+                      onChange={(e) => setDocRelacionado({ ...docRelacionado, codigoGeneracion: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Fecha de Generación</label>
-                    <input 
-                      type="date" 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                    <label className="text-xs font-semibold text-black ml-1">Fecha de Generación</label>
+                    <input
+                      type="date"
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
                       value={docRelacionado.fechaGeneracion}
-                      onChange={(e) => setDocRelacionado({...docRelacionado, fechaGeneracion: e.target.value})}
+                      onChange={(e) => setDocRelacionado({ ...docRelacionado, fechaGeneracion: e.target.value })}
                     />
                   </div>
                 </div>
@@ -282,18 +280,18 @@ export default function DteForm({ defaultTipoDte }) {
           {/* SECCIÓN RECEPTOR */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
-              <UserIcon className="w-5 h-5 text-gray-400" />
-              <h3 className="font-bold text-gray-700">{isSujetoExcluido ? 'Sujeto Excluido' : 'Información del Receptor'}</h3>
+              <UserIcon className="w-5 h-5 text-black" />
+              <h3 className="font-bold text-black">{isSujetoExcluido ? 'Sujeto Excluido' : 'Información del Receptor'}</h3>
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo Documento</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    <label className="text-xs font-semibold text-black ml-1">Tipo Documento</label>
+                    <select
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
                       value={receptor.tipoDoc}
-                      onChange={(e) => setReceptor({...receptor, tipoDoc: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, tipoDoc: e.target.value })}
                     >
                       <option>NIT</option>
                       <option>DUI</option>
@@ -302,57 +300,57 @@ export default function DteForm({ defaultTipoDte }) {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">{receptor.tipoDoc}</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder={`Digite el número de ${receptor.tipoDoc}`}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                       value={receptor.numDoc}
-                      onChange={(e) => setReceptor({...receptor, numDoc: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, numDoc: e.target.value })}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">{isSujetoExcluido ? 'Nombre del Receptor' : 'Nombre del Cliente'}</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder={isSujetoExcluido ? 'Nombre completo del receptor' : 'Nombre completo del cliente'}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.nombre}
-                    onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, nombre: e.target.value })}
                   />
                 </div>
                 {!isSujetoExcluido && (
                   <>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
-                      <input 
-                        type="text" 
-                        placeholder="Número de NRC" 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      <input
+                        type="text"
+                        placeholder="Número de NRC"
+                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                         value={receptor.nrc}
-                        onChange={(e) => setReceptor({...receptor, nrc: e.target.value})}
+                        onChange={(e) => setReceptor({ ...receptor, nrc: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-500 ml-1">Nombre Comercial</label>
-                      <input 
-                        type="text" 
-                        placeholder="Personalizar nombre comercial" 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      <input
+                        type="text"
+                        placeholder="Personalizar nombre comercial"
+                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                         value={receptor.nombreComercial}
-                        onChange={(e) => setReceptor({...receptor, nombreComercial: e.target.value})}
+                        onChange={(e) => setReceptor({ ...receptor, nombreComercial: e.target.value })}
                       />
                     </div>
                   </>
                 )}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Actividad Económica</label>
-                  <input 
-                    type="text" 
-                    placeholder="Actividad económica" 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                  <input
+                    type="text"
+                    placeholder="Actividad económica"
+                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.actividadEconomica}
-                    onChange={(e) => setReceptor({...receptor, actividadEconomica: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, actividadEconomica: e.target.value })}
                   />
                 </div>
               </div>
@@ -360,54 +358,60 @@ export default function DteForm({ defaultTipoDte }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Departamento</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                      value={receptor.departamento}
-                      onChange={(e) => setReceptor({...receptor, departamento: e.target.value})}
-                    >
-                      {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-                    </select>
+                      <select
+                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        value={receptor.departamento}
+                        onChange={(e) => {
+                          const depto = e.target.value;
+                          const firstMuni = CAT_MUNICIPIO[depto]?.[0]?.codigo || "";
+                          setReceptor({ ...receptor, departamento: depto, municipio: firstMuni });
+                        }}
+                      >
+                        <option value="">Seleccione Departamento</option>
+                        {departamentos.map(d => <option key={d.codigo} value={d.codigo}>{d.codigo} - {d.descripcion}</option>)}
+                      </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Municipio</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                      value={receptor.municipio}
-                      onChange={(e) => setReceptor({...receptor, municipio: e.target.value})}
-                    >
-                      {municipios.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                    </select>
+                      <select
+                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        value={receptor.municipio}
+                        onChange={(e) => setReceptor({ ...receptor, municipio: e.target.value })}
+                      >
+                        <option value="">Seleccione Municipio</option>
+                        {municipios.map(m => <option key={m.codigo} value={m.codigo}>{m.codigo} - {m.descripcion}</option>)}
+                      </select>
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
-                  <textarea 
-                    placeholder="Digite el complemento de la dirección" 
+                  <textarea
+                    placeholder="Digite el complemento de la dirección"
                     rows="2"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
                     value={receptor.complemento}
-                    onChange={(e) => setReceptor({...receptor, complemento: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, complemento: e.target.value })}
                   ></textarea>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Correo electrónico</label>
-                    <input 
-                      type="email" 
-                      placeholder="ejemplo@correo.com" 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    <input
+                      type="email"
+                      placeholder="ejemplo@correo.com"
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.correo}
-                      onChange={(e) => setReceptor({...receptor, correo: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, correo: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Teléfono</label>
-                    <input 
-                      type="text" 
-                      placeholder="7000-0000" 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    <input
+                      type="text"
+                      placeholder="7000-0000"
+                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.telefono}
-                      onChange={(e) => setReceptor({...receptor, telefono: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, telefono: e.target.value })}
                     />
                   </div>
                 </div>
@@ -419,21 +423,21 @@ export default function DteForm({ defaultTipoDte }) {
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <ShoppingCartIcon className="w-5 h-5 text-gray-400" />
+                <ShoppingCartIcon className="w-5 h-5 text-black" />
                 <h3 className="font-bold text-gray-700">Detalle de la Operación</h3>
               </div>
-              <button 
+              <button
                 onClick={agregarItem}
                 className="inline-flex items-center px-4 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
               >
                 <PlusIcon className="w-4 h-4 mr-1" /> AGREGAR ITEM
               </button>
             </div>
-            
+            {/*tabla para mostrar los items*/}
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[10px] text-gray-400 uppercase tracking-[0.15em] border-b border-gray-50">
+                  <tr className="text-[10px] text-black uppercase tracking-[0.15em] border-b border-gray-50">
                     <th className="py-4 px-8 font-bold">{isSujetoExcluido ? 'Descripción' : (isNota ? 'Cantidad' : 'Unidad de Medida')}</th>
                     <th className="py-4 px-4 font-bold">{isSujetoExcluido ? 'Unidad de Medida' : 'Descripción'}</th>
                     <th className="py-4 px-4 font-bold w-24">{isSujetoExcluido ? 'Cantidad' : (isNota ? 'Precio' : 'Cantidad')}</th>
@@ -462,23 +466,23 @@ export default function DteForm({ defaultTipoDte }) {
                     <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 px-8">
                         {isSujetoExcluido ? (
-                          <input 
-                            type="text" 
-                            placeholder="Descripción..." 
+                          <input
+                            type="text"
+                            placeholder="Descripción..."
                             className="w-full bg-transparent border-none text-sm text-gray-800 placeholder-gray-300 focus:ring-0 outline-none"
                             value={item.descripcion}
                             onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)}
                           />
                         ) : (
                           isNota ? (
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700"
                               value={item.cantidad}
                               onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
                             />
                           ) : (
-                            <select 
+                            <select
                               className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none"
                               value={item.unidadMedida}
                               onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
@@ -492,7 +496,7 @@ export default function DteForm({ defaultTipoDte }) {
                       </td>
                       <td className="py-4 px-4">
                         {isSujetoExcluido ? (
-                          <select 
+                          <select
                             className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none"
                             value={item.unidadMedida}
                             onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
@@ -502,9 +506,9 @@ export default function DteForm({ defaultTipoDte }) {
                             <option>Peso</option>
                           </select>
                         ) : (
-                          <input 
-                            type="text" 
-                            placeholder="Descripción del producto..." 
+                          <input
+                            type="text"
+                            placeholder="Descripción del producto..."
                             className="w-full bg-transparent border-none text-sm text-gray-800 placeholder-gray-300 focus:ring-0 outline-none"
                             value={item.descripcion}
                             onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)}
@@ -514,8 +518,8 @@ export default function DteForm({ defaultTipoDte }) {
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-1">
                           {(isSujetoExcluido || !isNota) ? (
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500/20"
                               value={item.cantidad}
                               onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
@@ -523,8 +527,8 @@ export default function DteForm({ defaultTipoDte }) {
                           ) : (
                             <>
                               <span className="text-gray-400 text-xs">$</span>
-                              <input 
-                                type="number" 
+                              <input
+                                type="number"
                                 className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
                                 value={item.precio}
                                 onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
@@ -537,8 +541,8 @@ export default function DteForm({ defaultTipoDte }) {
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-1">
                             <span className="text-gray-400 text-xs">$</span>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
                               value={item.precio}
                               onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
@@ -549,24 +553,24 @@ export default function DteForm({ defaultTipoDte }) {
                       {isNota ? (
                         <>
                           <td className="py-4 px-4">
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-purple-200 outline-none"
                               value={item.subTotalNoSujeto}
                               onChange={(e) => updateItem(item.id, 'subTotalNoSujeto', parseFloat(e.target.value) || 0)}
                             />
                           </td>
                           <td className="py-4 px-4">
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-purple-200 outline-none"
                               value={item.subTotalExento}
                               onChange={(e) => updateItem(item.id, 'subTotalExento', parseFloat(e.target.value) || 0)}
                             />
                           </td>
                           <td className="py-4 px-4">
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-purple-200 outline-none font-bold text-gray-900"
                               value={item.subTotalGravado}
                               onChange={(e) => updateItem(item.id, 'subTotalGravado', parseFloat(e.target.value) || 0)}
@@ -577,8 +581,8 @@ export default function DteForm({ defaultTipoDte }) {
                         isSujetoExcluido ? (
                           <>
                             <td className="py-4 px-4">
-                              <input 
-                                type="number" 
+                              <input
+                                type="number"
                                 className="w-24 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-blue-200 outline-none"
                                 value={item.descuento}
                                 onChange={(e) => updateItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
@@ -591,7 +595,7 @@ export default function DteForm({ defaultTipoDte }) {
                         )
                       )}
                       <td className="py-4 px-8 text-right">
-                        <button 
+                        <button
                           onClick={() => eliminarItem(item.id)}
                           className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                         >
@@ -604,31 +608,31 @@ export default function DteForm({ defaultTipoDte }) {
               </table>
             </div>
           </section>
-
+          {/*Condiciones de operacion y forma de pago */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
-                <CreditCardIcon className="w-5 h-5 text-gray-400" />
-                <h3 className="font-bold text-gray-700">Condición de la Operación</h3>
+                <CreditCardIcon className="w-5 h-5 text-black" />
+                <h3 className="font-bold text-black">Condición de la Operación</h3>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Condición</label>
-                  <select 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                  <label className="text-xs font-semibold text-black">Condición</label>
+                  <select
+                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
                     value={pago.condicion}
-                    onChange={(e) => setPago({...pago, condicion: e.target.value})}
+                    onChange={(e) => setPago({ ...pago, condicion: e.target.value })}
                   >
                     <option>Contado</option>
                     <option>Crédito</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Forma Pago</label>
-                  <select 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                  <label className="text-xs font-semibold text-black">Forma Pago</label>
+                  <select
+                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
                     value={pago.metodo}
-                    onChange={(e) => setPago({...pago, metodo: e.target.value})}
+                    onChange={(e) => setPago({ ...pago, metodo: e.target.value })}
                   >
                     <option>Billetes y monedas</option>
                     <option>Tarjeta de Crédito</option>
@@ -637,18 +641,18 @@ export default function DteForm({ defaultTipoDte }) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500">Monto</label>
-                <input 
-                  type="number" 
-                  placeholder="Monto Pago" 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                <label className="text-xs font-semibold text-black">Monto</label>
+                <input
+                  type="number"
+                  placeholder="Monto Pago"
+                  className="w-full bg-gray-50 text-black border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
-              
+
               <div className="overflow-x-auto pt-4">
                 <table className="w-full text-[10px] text-left">
                   <thead>
-                    <tr className="text-gray-400 uppercase font-bold border-b border-gray-50">
+                    <tr className="text-black uppercase font-bold border-b border-gray-50">
                       <th className="pb-2 pr-2">Forma de Pago</th>
                       <th className="pb-2 px-2 text-right">Monto</th>
                       <th className="pb-2 px-2">No. Documento</th>
@@ -658,20 +662,20 @@ export default function DteForm({ defaultTipoDte }) {
                   </thead>
                   <tbody>
                     <tr className="border-b border-gray-50/50">
-                      <td className="py-2 pr-2 text-gray-600">{pago.metodo}</td>
-                      <td className="py-2 px-2 text-right font-medium">$ {totalPagar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-2 px-2 text-gray-400 italic">N/A</td>
-                      <td className="py-2 px-2 text-gray-400 italic">N/A</td>
-                      <td className="py-2 pl-2 text-gray-400 italic">N/A</td>
+                      <td className="py-2 pr-2 text-black">{pago.metodo}</td>
+                      <td className="py-2 px-2 text-right font-medium text-black">$ {totalPagar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-2 px-2 text-black italic">N/A</td>
+                      <td className="py-2 px-2 text-black italic">N/A</td>
+                      <td className="py-2 pl-2 text-black italic">N/A</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               <div className="space-y-1.5 pt-2">
-                <label className="text-xs font-semibold text-gray-500">Observaciones</label>
-                <textarea 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
+                <label className="text-xs font-semibold text-black">Observaciones</label>
+                <textarea
+                  className="w-full bg-black border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
                   rows={isNota ? 6 : 3}
                   placeholder="Observaciones al documento"
                   value={observaciones}
@@ -679,10 +683,10 @@ export default function DteForm({ defaultTipoDte }) {
                 ></textarea>
               </div>
             </section>
-
+            {/*seccion de datos adicionales de entrega */}
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
-                <InformationCircleIcon className="w-5 h-5 text-gray-400" />
+                <InformationCircleIcon className="w-5 h-5 text-black" />
                 <h3 className="font-bold text-gray-700">{isNota ? 'Información obligatoria, recepción entrega documento' : 'Datos adicionales entrega'}</h3>
               </div>
               <div className="space-y-6">
@@ -692,23 +696,23 @@ export default function DteForm({ defaultTipoDte }) {
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">N°. Documento</label>
-                      <input 
-                        type="text" 
-                        placeholder="Responsable de emitir" 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento</label>
+                      <input
+                        type="text"
+                        placeholder="Responsable de emitir"
+                        className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.emisorDoc}
-                        onChange={(e) => setResponsables({...responsables, emisorDoc: e.target.value})}
+                        onChange={(e) => setResponsables({ ...responsables, emisorDoc: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">Nombre</label>
-                      <input 
-                        type="text" 
-                        placeholder="Responsable de emitir" 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">Nombre</label>
+                      <input
+                        type="text"
+                        placeholder="Responsable de emitir"
+                        className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.emisorNombre}
-                        onChange={(e) => setResponsables({...responsables, emisorNombre: e.target.value})}
+                        onChange={(e) => setResponsables({ ...responsables, emisorNombre: e.target.value })}
                       />
                     </div>
                   </div>
@@ -720,23 +724,23 @@ export default function DteForm({ defaultTipoDte }) {
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">N°. Documento</label>
-                      <input 
-                        type="text" 
-                        placeholder="Responsable de recibir" 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento</label>
+                      <input
+                        type="text"
+                        placeholder="Responsable de recibir"
+                        className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.receptorDoc}
-                        onChange={(e) => setResponsables({...responsables, receptorDoc: e.target.value})}
+                        onChange={(e) => setResponsables({ ...responsables, receptorDoc: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-gray-400 ml-1 uppercase">Nombre</label>
-                      <input 
-                        type="text" 
-                        placeholder="Responsable de recibir" 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">Nombre</label>
+                      <input
+                        type="text"
+                        placeholder="Responsable de recibir"
+                        className="w-full  text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.receptorNombre}
-                        onChange={(e) => setResponsables({...responsables, receptorNombre: e.target.value})}
+                        onChange={(e) => setResponsables({ ...responsables, receptorNombre: e.target.value })}
                       />
                     </div>
                   </div>
@@ -751,11 +755,11 @@ export default function DteForm({ defaultTipoDte }) {
           <div className="sticky top-24 space-y-6">
             <section className="bg-[#1A2B3C] text-white rounded-[2.5rem] shadow-2xl p-10 overflow-hidden relative">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-              
+
               <h3 className="text-xl font-bold mb-8 flex items-center gap-2">
                 Resumen de Operación
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm font-medium">
@@ -783,8 +787,8 @@ export default function DteForm({ defaultTipoDte }) {
                       <span className="text-sm font-medium">IVA Retenido</span>
                       <div className="flex items-center gap-1">
                         <span className="text-xs">$</span>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           className="w-20 bg-white/10 border-none rounded px-2 py-0.5 text-right text-sm font-semibold outline-none focus:ring-1 focus:ring-red-400"
                           value={ivaRetenido}
                           onChange={(e) => setIvaRetenido(parseFloat(e.target.value) || 0)}
@@ -795,8 +799,8 @@ export default function DteForm({ defaultTipoDte }) {
                       <span className="text-sm font-medium">{isNota ? 'Percepción IVA' : 'IVA Percibido'}</span>
                       <div className="flex items-center gap-1">
                         <span className="text-xs">$</span>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           className="w-20 bg-white/10 border-none rounded px-2 py-0.5 text-right text-sm font-semibold outline-none focus:ring-1 focus:ring-green-400"
                           value={ivaPercibido}
                           onChange={(e) => setIvaPercibido(parseFloat(e.target.value) || 0)}
@@ -816,8 +820,8 @@ export default function DteForm({ defaultTipoDte }) {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">Retención Renta</span>
                       <div className="flex items-center bg-white/10 rounded px-1">
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           className="w-8 bg-transparent border-none p-0 text-[10px] text-center font-bold outline-none"
                           value={retencionRentaPercent}
                           onChange={(e) => setRetencionRentaPercent(parseFloat(e.target.value) || 0)}
@@ -828,7 +832,7 @@ export default function DteForm({ defaultTipoDte }) {
                     <span className="text-lg font-semibold">$ {retencionRenta.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                
+
                 <div className="border-t border-white/10 pt-6 space-y-2">
                   <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center mb-4">
                     {isSujetoExcluido ? 'Total a pagar' : (isNota ? 'Monto Total de la operación' : 'Total a Pagar')}
