@@ -175,24 +175,24 @@ export default function EmisorConfig() {
           <Input name="nit" value={form.nit} placeholder="NIT *" onChange={handleChange} error={errores.nit} />
           <Input name="nrc" value={form.nrc} placeholder="NRC *" onChange={handleChange} error={errores.nrc} />
           <Select name="cod_actividad" value={form.cod_actividad} placeholder="Seleccione giro *" options={CAT_GIROS} onChange={handleChange} error={errores.cod_actividad} />
-          <Select 
-            name="departamento" 
-            value={form.departamento} 
-            placeholder="Seleccione departamento *" 
-            options={CAT_DEPTO} 
+          <Select
+            name="departamento"
+            value={form.departamento}
+            placeholder="Seleccione departamento *"
+            options={CAT_DEPTO}
             onChange={(e) => {
               const depto = e.target.value;
               setForm(prev => ({ ...prev, departamento: depto, municipio: CAT_MUNICIPIO[depto]?.[0]?.codigo || "" }));
-            }} 
-            error={errores.departamento} 
+            }}
+            error={errores.departamento}
           />
-          <Select 
-            name="municipio" 
-            value={form.municipio} 
-            placeholder="Seleccione municipio *" 
-            options={CAT_MUNICIPIO[form.departamento] || []} 
-            onChange={handleChange} 
-            error={errores.municipio} 
+          <Select
+            name="municipio"
+            value={form.municipio}
+            placeholder="Seleccione municipio *"
+            options={CAT_MUNICIPIO[form.departamento] || []}
+            onChange={handleChange}
+            error={errores.municipio}
           />
           <Input name="correo" value={form.correo} placeholder="Correo electrónico" onChange={handleChange} error={errores.correo} />
           <Input name="telefono" value={form.telefono} placeholder="Teléfono" onChange={handleChange} />
