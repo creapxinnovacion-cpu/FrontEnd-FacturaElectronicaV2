@@ -1,9 +1,8 @@
 import Select from "../utils/ui/Select";
 import { CAT_GIROS } from "../utils/catalogos/catGiro";
-import { CAT_DEPTO } from "../utils/catalogos/catDepto";
-import { CAT_MUNICIPIO } from "../utils/catalogos/catMunicipio";
 import { useState, useEffect } from "react";
 import Input from "../utils/ui/Input";
+import SelectorUbicacion from "../components/SelectorUbicacion";
 import { emisorService } from "../services/api/emisor.service";
 
 import {
@@ -11,6 +10,7 @@ import {
   validarNRC,
   validarEmail,
   validarLongitud,
+  sanitizarSoloNumeros,
 } from "../utils/validacionesMH";
 
 export default function EmisorConfig() {
@@ -23,8 +23,10 @@ export default function EmisorConfig() {
     cod_actividad: "",
     desc_actividad: "",
     direccion: "",
-    departamento: "",
-    municipio: "",
+    departamento: "06",
+    municipio: "23",
+    distrito: "01",
+    complemento: "",
     correo: "",
     telefono: "",
     passwordCertificado: "",
@@ -54,8 +56,10 @@ export default function EmisorConfig() {
           cod_actividad: data.cod_actividad,
           desc_actividad: data.desc_actividad,
           direccion: data.direccion,
-          departamento: data.departamento || "",
-          municipio: data.municipio || "",
+          departamento: data.departamento || "06",
+          municipio: data.municipio || "23",
+          distrito: data.distrito || "01",
+          complemento: data.complemento || "",
           correo: data.correo,
           telefono: data.telefono,
         });
@@ -94,9 +98,12 @@ export default function EmisorConfig() {
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-    const val = files ? files[0] : value;
+    let val = files ? files[0] : value;
+    if (name === "nrc") {
+      val = sanitizarSoloNumeros(val, 8);
+    }
     setForm((prev) => ({ ...prev, [name]: val }));
-    if (!files) validarCampo(name, value);
+    if (!files) validarCampo(name, val);
   };
 
   const handleSubmit = async (e) => {
@@ -175,27 +182,20 @@ export default function EmisorConfig() {
           <Input name="nit" value={form.nit} placeholder="NIT *" onChange={handleChange} error={errores.nit} />
           <Input name="nrc" value={form.nrc} placeholder="NRC *" onChange={handleChange} error={errores.nrc} />
           <Select name="cod_actividad" value={form.cod_actividad} placeholder="Seleccione giro *" options={CAT_GIROS} onChange={handleChange} error={errores.cod_actividad} />
-          <Select
-            name="departamento"
-            value={form.departamento}
-            placeholder="Seleccione departamento *"
-            options={CAT_DEPTO}
-            onChange={(e) => {
-              const depto = e.target.value;
-              setForm(prev => ({ ...prev, departamento: depto, municipio: CAT_MUNICIPIO[depto]?.[0]?.codigo || "" }));
-            }}
-            error={errores.departamento}
-          />
-          <Select
-            name="municipio"
-            value={form.municipio}
-            placeholder="Seleccione municipio *"
-            options={CAT_MUNICIPIO[form.departamento] || []}
-            onChange={handleChange}
-            error={errores.municipio}
-          />
           <Input name="correo" value={form.correo} placeholder="Correo electrónico" onChange={handleChange} error={errores.correo} />
           <Input name="telefono" value={form.telefono} placeholder="Teléfono" onChange={handleChange} />
+        </div>
+
+        {/* Ubicación Territorial V2.0 (Departamento, Municipio, Distrito) */}
+        <div className="pt-2">
+          <SelectorUbicacion
+            departamento={form.departamento}
+            municipio={form.municipio}
+            distrito={form.distrito}
+            onChange={({ departamento, municipio, distrito }) => {
+              setForm(prev => ({ ...prev, departamento, municipio, distrito }));
+            }}
+          />
         </div>
         <textarea
           name="direccion"

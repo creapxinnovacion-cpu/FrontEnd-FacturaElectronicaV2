@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
-import { CAT_DEPTO } from "../utils/catalogos/catDepto";
-import { CAT_MUNICIPIO } from "../utils/catalogos/catMunicipio";
+import SelectorUbicacion from "./SelectorUbicacion";
+import { batchService } from "../services/api/batch.service";
+import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconomicas";
+import {
+  sanitizarSoloNumeros,
+  prevenirNoNumerico,
+  validarDUI,
+  validarNRC,
+  validarNIT,
+} from "../utils/validacionesMH";
 
 import {
   PlusIcon,
@@ -10,10 +18,17 @@ import {
   MapPinIcon,
   CreditCardIcon,
   InformationCircleIcon,
-  ShoppingCartIcon
+  ShoppingCartIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 
 export default function DteForm({ defaultTipoDte }) {
+  const [loadingEmitir, setLoadingEmitir] = useState(false);
+  const [emisionResultado, setEmisionResultado] = useState(null);
+  const [emisionError, setEmisionError] = useState(null);
+
   // --- STATE ---
   const createEmptyItem = (id = Date.now()) => ({
     id,
@@ -52,9 +67,11 @@ export default function DteForm({ defaultTipoDte }) {
     nombre: "",
     nrc: "",
     nombreComercial: "",
+    codActividad: "",
     actividadEconomica: "",
     departamento: "06",
     municipio: "23",
+    distrito: "01",
     complemento: "",
     correo: "",
     telefono: ""
@@ -80,6 +97,24 @@ export default function DteForm({ defaultTipoDte }) {
     tipoGeneracion: "Electrónica",
     codigoGeneracion: "",
     fechaGeneracion: ""
+  });
+
+  // Reloj dinámico en tiempo real para la fecha y hora de emisión
+  const [fechaHoraActual, setFechaHoraActual] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFechaHoraActual(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const fechaActualFormateada = fechaHoraActual.toLocaleDateString('es-SV');
+  const horaActualFormateada = fechaHoraActual.toLocaleTimeString('es-SV', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
   });
 
   // --- LOGIC ---
@@ -141,8 +176,51 @@ export default function DteForm({ defaultTipoDte }) {
     ? (subTotalGeral - retencionRenta)
     : (totalGravado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
 
-  const departamentos = CAT_DEPTO;
-  const municipios = CAT_MUNICIPIO[receptor.departamento] || [];
+  const handleEmitirDte = async () => {
+    setLoadingEmitir(true);
+    setEmisionError(null);
+    setEmisionResultado(null);
+    try {
+      let tipoDteId = 1;
+      const t = emisor.tipoDte || "";
+      if (t.includes("Crédito Fiscal")) tipoDteId = 2;
+      else if (t.includes("Nota de Crédito")) tipoDteId = 3;
+      else if (t.includes("Nota de Débito")) tipoDteId = 4;
+      else if (t.includes("Sujeto Excluido")) tipoDteId = 9;
+      else if (t.includes("Exportación")) tipoDteId = 8;
+      else if (t.includes("Donación")) tipoDteId = 10;
+
+      const payload = {
+        emisor_id: 1,
+        tipo_dte: tipoDteId,
+        receptor_nombre: receptor.nombre || "Consumidor Final",
+        receptor_documento: receptor.numDoc || null,
+        receptor_tipo_documento: receptor.tipoDoc || "NIT",
+        receptor_nrc: receptor.nrc || null,
+        receptor_cod_actividad: receptor.codActividad || null,
+        receptor_actividad_economica: receptor.actividadEconomica || null,
+        receptor_correo: receptor.correo || null,
+        receptor_direccion: receptor.complemento || "San Salvador",
+        receptor_departamento: receptor.departamento || "06",
+        receptor_municipio: receptor.municipio || "23",
+        receptor_distrito: receptor.distrito || "01",
+        receptor_complemento: receptor.complemento || "Sin complemento",
+        items: items.map(it => ({
+          descripcion: it.descripcion || "Producto/Servicio",
+          cantidad: parseFloat(it.cantidad) || 1,
+          precio: parseFloat(it.precio) || 0,
+        })),
+        total_pagar: parseFloat(totalPagar.toFixed(2)),
+      };
+
+      const res = await batchService.create(payload);
+      setEmisionResultado(res.data);
+    } catch (err) {
+      setEmisionError(err.response?.data?.error || err.message || "Error al emitir DTE ante Ministerio de Hacienda");
+    } finally {
+      setLoadingEmitir(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-800 pb-12">
@@ -160,12 +238,73 @@ export default function DteForm({ defaultTipoDte }) {
             <button className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
               Guardar Borrador
             </button>
-            <button className="px-8 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02]">
-              EMITIR DOCUMENTO
+            <button
+              onClick={handleEmitirDte}
+              disabled={loadingEmitir}
+              className="px-8 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02]"
+            >
+              {loadingEmitir ? "EMITIENDO..." : "EMITIR DOCUMENTO"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* FEEDBACK BANNER DE EMISIÓN */}
+      {emisionResultado && (
+        <div className="max-w-7xl mx-auto px-6 mt-6 mb-2">
+          <div className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3">
+              <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
+              <div>
+                <p className="font-bold text-sm text-white">DTE Emitido y Transmitido con Éxito</p>
+                <p className="text-xs text-emerald-300 mt-0.5">
+                  Código de Generación: <span className="font-mono text-white">{emisionResultado.dte?.codigo_generacion || emisionResultado.codigo_generacion}</span>
+                </p>
+                <p className="text-xs text-emerald-300">
+                  Sello MH: <span className="font-mono text-white">{emisionResultado.dte?.sello_recepcion || emisionResultado.transmission?.sello || "Otorgado"}</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {emisionResultado.dte?.id && (
+                <>
+                  <a
+                    href={batchService.getPdfUrl(emisionResultado.dte.id, true)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-lg shadow-blue-500/20"
+                  >
+                    <DocumentTextIcon className="w-4 h-4" />
+                    VER PDF
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => batchService.downloadPdf(emisionResultado.dte.id, emisionResultado.dte.codigo_generacion)}
+                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+                  >
+                    DESCARGAR PDF
+                  </button>
+                </>
+              )}
+              <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-full font-bold">
+                ESTADO: {emisionResultado.dte?.estado_actual || "ACEPTADO"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {emisionError && (
+        <div className="max-w-7xl mx-auto px-6 mt-6 mb-2">
+          <div className="bg-rose-950/80 border border-rose-500/40 text-rose-200 p-5 rounded-2xl flex items-center gap-3 shadow-xl">
+            <XCircleIcon className="w-7 h-7 text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-sm text-white">Error durante la Transmisión al Ministerio de Hacienda</p>
+              <p className="text-xs text-rose-300 mt-0.5">{emisionError}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -194,9 +333,12 @@ export default function DteForm({ defaultTipoDte }) {
                     <p className="text-sm font-bold text-blue-600">{emisor.tipoDte}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Emisión</p>
-                    <p className="text-sm text-gray-700 font-medium">{emisor.fecha}</p>
-                    <p className="text-[10px] text-gray-400">{emisor.hora}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Emisión
+                    </p>
+                    <p className="text-sm text-gray-700 font-medium">{fechaActualFormateada}</p>
+                    <p className="text-[11px] text-gray-500 font-mono font-semibold">{horaActualFormateada}</p>
                   </div>
                 </div>
               </div>
@@ -289,24 +431,88 @@ export default function DteForm({ defaultTipoDte }) {
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-black ml-1">Tipo Documento</label>
                     <select
-                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none transition-all cursor-pointer"
                       value={receptor.tipoDoc}
-                      onChange={(e) => setReceptor({ ...receptor, tipoDoc: e.target.value })}
+                      onChange={(e) => {
+                        const nuevoTipo = e.target.value;
+                        let docLimpio = receptor.numDoc;
+                        if (nuevoTipo === "DUI") {
+                          docLimpio = sanitizarSoloNumeros(docLimpio, 9);
+                        } else if (nuevoTipo === "NIT") {
+                          docLimpio = sanitizarSoloNumeros(docLimpio, 14);
+                        }
+                        setReceptor({ ...receptor, tipoDoc: nuevoTipo, numDoc: docLimpio });
+                      }}
                     >
-                      <option>NIT</option>
-                      <option>DUI</option>
-                      <option>Otro</option>
+                      <option className="text-gray-900 bg-white">NIT</option>
+                      <option className="text-gray-900 bg-white">DUI</option>
+                      <option className="text-gray-900 bg-white">Otro</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">{receptor.tipoDoc}</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-semibold text-gray-500 ml-1">{receptor.tipoDoc}</label>
+                      {receptor.tipoDoc === "DUI" && receptor.numDoc && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          receptor.numDoc.length === 9
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {receptor.numDoc.length === 9 ? "✓ DUI 9 dígitos" : `${receptor.numDoc.length}/9 dígitos`}
+                        </span>
+                      )}
+                      {receptor.tipoDoc === "NIT" && receptor.numDoc && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          receptor.numDoc.length === 14 || receptor.numDoc.length === 9
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {receptor.numDoc.length === 14 ? "✓ NIT 14 dígitos" : receptor.numDoc.length === 9 ? "✓ Homologado 9 dígitos" : `${receptor.numDoc.length}/14 dígitos`}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
-                      placeholder={`Digite el número de ${receptor.tipoDoc}`}
-                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      inputMode={receptor.tipoDoc === "Otro" ? "text" : "numeric"}
+                      pattern={receptor.tipoDoc === "Otro" ? undefined : "[0-9]*"}
+                      maxLength={receptor.tipoDoc === "DUI" ? 9 : receptor.tipoDoc === "NIT" ? 14 : undefined}
+                      placeholder={
+                        receptor.tipoDoc === "DUI"
+                          ? "Solo números (9 dígitos)"
+                          : receptor.tipoDoc === "NIT"
+                          ? "Solo números (14 dígitos)"
+                          : "Número de documento"
+                      }
+                      className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                       value={receptor.numDoc}
-                      onChange={(e) => setReceptor({ ...receptor, numDoc: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (receptor.tipoDoc === "DUI" || receptor.tipoDoc === "NIT") {
+                          prevenirNoNumerico(e);
+                        }
+                      }}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (receptor.tipoDoc === "DUI") {
+                          // Solo dígitos numéricos, máximo 9. Sin abecedario, sin caracteres especiales ni inyección SQL
+                          val = sanitizarSoloNumeros(val, 9);
+                        } else if (receptor.tipoDoc === "NIT") {
+                          // Solo dígitos numéricos, máximo 14
+                          val = sanitizarSoloNumeros(val, 14);
+                        } else {
+                          // Sanitizar contra inyección SQL
+                          val = val.replace(/['";\-\-/*=]/g, "");
+                        }
+                        setReceptor({ ...receptor, numDoc: val });
+                      }}
                     />
+                    <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
+                      <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
+                      {receptor.tipoDoc === "DUI"
+                        ? "DUI: Solo números (0-9). Abecedario, símbolos y caracteres SQL bloqueados."
+                        : receptor.tipoDoc === "NIT"
+                        ? "NIT: Solo números (0-9). Protegido contra inyección SQL."
+                        : "Documento protegido contra inyección SQL."}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -314,81 +520,123 @@ export default function DteForm({ defaultTipoDte }) {
                   <input
                     type="text"
                     placeholder={isSujetoExcluido ? 'Nombre completo del receptor' : 'Nombre completo del cliente'}
-                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.nombre}
-                    onChange={(e) => setReceptor({ ...receptor, nombre: e.target.value })}
+                    onChange={(e) => setReceptor({ ...receptor, nombre: e.target.value.replace(/['";\-\-/*=]/g, "") })}
                   />
                 </div>
                 {!isSujetoExcluido && (
                   <>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
+                        {receptor.nrc && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            receptor.nrc.length >= 1 && receptor.nrc.length <= 8
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}>
+                            {`✓ NRC: ${receptor.nrc.length} dígitos`}
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
-                        placeholder="Número de NRC"
-                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={8}
+                        placeholder="Solo números (máx. 8 dígitos)"
+                        className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                         value={receptor.nrc}
-                        onChange={(e) => setReceptor({ ...receptor, nrc: e.target.value })}
+                        onKeyDown={prevenirNoNumerico}
+                        onChange={(e) => {
+                          // Solo números (0-9), máx 8 dígitos. Elimina instantáneamente letras, símbolos y patrones SQL
+                          const val = sanitizarSoloNumeros(e.target.value, 8);
+                          setReceptor({ ...receptor, nrc: val });
+                        }}
                       />
+                      <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
+                        <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
+                        NRC: Solo dígitos (0-9). Abecedario, caracteres especiales y símbolos SQL bloqueados.
+                      </p>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-500 ml-1">Nombre Comercial</label>
                       <input
                         type="text"
                         placeholder="Personalizar nombre comercial"
-                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                         value={receptor.nombreComercial}
-                        onChange={(e) => setReceptor({ ...receptor, nombreComercial: e.target.value })}
+                        onChange={(e) => setReceptor({ ...receptor, nombreComercial: e.target.value.replace(/['";\-\-/*=]/g, "") })}
                       />
                     </div>
                   </>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Actividad Económica</label>
-                  <input
-                    type="text"
-                    placeholder="Actividad económica"
-                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                    value={receptor.actividadEconomica}
-                    onChange={(e) => setReceptor({ ...receptor, actividadEconomica: e.target.value })}
-                  />
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Actividad Económica</label>
+                    {receptor.codActividad && (
+                      <span className="text-[10px] bg-blue-100 text-blue-800 font-mono px-2 py-0.5 rounded-full font-bold">
+                        Cód: {receptor.codActividad}
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
+                    value={receptor.codActividad ? `${receptor.codActividad}||${receptor.actividadEconomica}` : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setReceptor({ ...receptor, codActividad: "", actividadEconomica: "" });
+                      } else {
+                        const [codigo, ...descParts] = val.split("||");
+                        setReceptor({
+                          ...receptor,
+                          codActividad: codigo,
+                          actividadEconomica: descParts.join("||")
+                        });
+                      }
+                    }}
+                  >
+                    <option value="" className="text-gray-900 bg-white">-- Seleccione Actividad Económica (Catálogo MH) --</option>
+                    {CAT_ACTIVIDAD_ECONOMICA.map((act, idx) => (
+                      <option
+                        key={`${act.codigo}-${idx}`}
+                        value={`${act.codigo}||${act.descripcion}`}
+                        className="text-gray-900 bg-white"
+                      >
+                        {act.codigo} - {act.descripcion}
+                      </option>
+                    ))}
+                  </select>
+                  {receptor.actividadEconomica && (
+                    <div className="p-2.5 bg-blue-50/80 rounded-xl border border-blue-200 text-xs text-blue-900 flex items-start gap-2 mt-1">
+                      <span className="font-mono font-bold text-blue-700 bg-blue-200/70 px-1.5 py-0.5 rounded text-[11px]">
+                        {receptor.codActividad}
+                      </span>
+                      <span className="flex-1 text-[11px] leading-snug text-blue-950 font-medium">
+                        {receptor.actividadEconomica}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Departamento</label>
-                      <select
-                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                        value={receptor.departamento}
-                        onChange={(e) => {
-                          const depto = e.target.value;
-                          const firstMuni = CAT_MUNICIPIO[depto]?.[0]?.codigo || "";
-                          setReceptor({ ...receptor, departamento: depto, municipio: firstMuni });
-                        }}
-                      >
-                        <option value="">Seleccione Departamento</option>
-                        {departamentos.map(d => <option key={d.codigo} value={d.codigo}>{d.codigo} - {d.descripcion}</option>)}
-                      </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Municipio</label>
-                      <select
-                        className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                        value={receptor.municipio}
-                        onChange={(e) => setReceptor({ ...receptor, municipio: e.target.value })}
-                      >
-                        <option value="">Seleccione Municipio</option>
-                        {municipios.map(m => <option key={m.codigo} value={m.codigo}>{m.codigo} - {m.descripcion}</option>)}
-                      </select>
-                  </div>
-                </div>
+              <div className="space-y-4 text-xs font-semibold text-gray-500 ">
+                <SelectorUbicacion
+                  departamento={receptor.departamento}
+                  municipio={receptor.municipio}
+                  distrito={receptor.distrito}
+                  gridCols="grid-cols-1 md:grid-cols-2"
+                  onChange={({ departamento, municipio, distrito }) => {
+                    setReceptor({ ...receptor, departamento, municipio, distrito });
+                  }}
+                />
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
                   <textarea
                     placeholder="Digite el complemento de la dirección"
                     rows="2"
-                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                    className="w-full white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
                     value={receptor.complemento}
                     onChange={(e) => setReceptor({ ...receptor, complemento: e.target.value })}
                   ></textarea>
@@ -399,7 +647,7 @@ export default function DteForm({ defaultTipoDte }) {
                     <input
                       type="email"
                       placeholder="ejemplo@correo.com"
-                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      className="w-full white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.correo}
                       onChange={(e) => setReceptor({ ...receptor, correo: e.target.value })}
                     />
@@ -409,7 +657,7 @@ export default function DteForm({ defaultTipoDte }) {
                     <input
                       type="text"
                       placeholder="7000-0000"
-                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      className="w-full white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.telefono}
                       onChange={(e) => setReceptor({ ...receptor, telefono: e.target.value })}
                     />
@@ -523,14 +771,16 @@ export default function DteForm({ defaultTipoDte }) {
                               className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500/20"
                               value={item.cantidad}
                               onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
+                              min={1}
                             />
                           ) : (
                             <>
-                              <span className="text-gray-400 text-xs">$</span>
+                              <span className="text-gray-700 text-xs">$</span>
                               <input
                                 type="number"
                                 className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
                                 value={item.precio}
+                                min={0}
                                 onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
                               />
                             </>
@@ -545,6 +795,7 @@ export default function DteForm({ defaultTipoDte }) {
                               type="number"
                               className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
                               value={item.precio}
+                              min={0}
                               onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
                             />
                           </div>
@@ -615,7 +866,7 @@ export default function DteForm({ defaultTipoDte }) {
                 <CreditCardIcon className="w-5 h-5 text-black" />
                 <h3 className="font-bold text-black">Condición de la Operación</h3>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-black">Condición</label>
                   <select
@@ -645,6 +896,10 @@ export default function DteForm({ defaultTipoDte }) {
                 <input
                   type="number"
                   placeholder="Monto Pago"
+                  min={0}
+                  max={totalPagar}
+                  value={pago.monto}
+                  onChange={(e) => setPago({ ...pago, monto: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-gray-50 text-black border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
@@ -694,15 +949,19 @@ export default function DteForm({ defaultTipoDte }) {
                   <p className="text-[10px] font-bold text-blue-600 uppercase">
                     {isNota ? 'Responsable por parte del Emisor' : 'Responsable de emitir el documento'}
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento</label>
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento (Solo Números)</label>
                       <input
                         type="text"
-                        placeholder="Responsable de emitir"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={14}
+                        placeholder="Solo dígitos (máx. 14)"
                         className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.emisorDoc}
-                        onChange={(e) => setResponsables({ ...responsables, emisorDoc: e.target.value })}
+                        onKeyDown={prevenirNoNumerico}
+                        onChange={(e) => setResponsables({ ...responsables, emisorDoc: sanitizarSoloNumeros(e.target.value, 14) })}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -712,7 +971,7 @@ export default function DteForm({ defaultTipoDte }) {
                         placeholder="Responsable de emitir"
                         className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.emisorNombre}
-                        onChange={(e) => setResponsables({ ...responsables, emisorNombre: e.target.value })}
+                        onChange={(e) => setResponsables({ ...responsables, emisorNombre: e.target.value.replace(/['";\-\-/*=]/g, "") })}
                       />
                     </div>
                   </div>
@@ -722,15 +981,19 @@ export default function DteForm({ defaultTipoDte }) {
                   <p className="text-[10px] font-bold text-gray-600 uppercase">
                     {isNota ? 'Responsable por parte del Receptor' : 'Responsable de recibir el documento'}
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento</label>
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento (Solo Números)</label>
                       <input
                         type="text"
-                        placeholder="Responsable de recibir"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={14}
+                        placeholder="Solo dígitos (máx. 14)"
                         className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.receptorDoc}
-                        onChange={(e) => setResponsables({ ...responsables, receptorDoc: e.target.value })}
+                        onKeyDown={prevenirNoNumerico}
+                        onChange={(e) => setResponsables({ ...responsables, receptorDoc: sanitizarSoloNumeros(e.target.value, 14) })}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -738,9 +1001,9 @@ export default function DteForm({ defaultTipoDte }) {
                       <input
                         type="text"
                         placeholder="Responsable de recibir"
-                        className="w-full  text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                        className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.receptorNombre}
-                        onChange={(e) => setResponsables({ ...responsables, receptorNombre: e.target.value })}
+                        onChange={(e) => setResponsables({ ...responsables, receptorNombre: e.target.value.replace(/['";\-\-/*=]/g, "") })}
                       />
                     </div>
                   </div>
@@ -856,9 +1119,13 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
 
               <div className="mt-10">
-                <button className="w-full py-4 bg-blue-500 hover:bg-blue-600 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={handleEmitirDte}
+                  disabled={loadingEmitir}
+                  className="w-full py-4 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                >
                   <CreditCardIcon className="w-5 h-5" />
-                  CONFIRMAR Y EMITIR
+                  {loadingEmitir ? "EMITIENDO A HACIENDA..." : "CONFIRMAR Y EMITIR"}
                 </button>
                 <p className="text-[10px] text-gray-500 text-center mt-4 px-4 leading-relaxed">
                   Al emitir, el documento será firmado digitalmente y enviado automáticamente al Ministerio de Hacienda.

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import SelectorUbicacion from "../components/SelectorUbicacion";
+import { batchService } from "../services/api/batch.service";
 import { 
   PlusIcon, 
   TrashIcon, 
@@ -7,10 +9,16 @@ import {
   MapPinIcon, 
   CreditCardIcon, 
   InformationCircleIcon,
-  ShoppingCartIcon
+  ShoppingCartIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from "@heroicons/react/24/outline";
 
 export default function Venta() {
+  const [loadingEmitir, setLoadingEmitir] = useState(false);
+  const [emisionResultado, setEmisionResultado] = useState(null);
+  const [emisionError, setEmisionError] = useState(null);
+
   // --- STATE ---
   const [items, setItems] = useState([
     { id: 1, unidadMedida: "Unidad", descripcion: "Producto Ejemplo", cantidad: 1, precio: 0.00, total: 0.00 }
@@ -33,8 +41,9 @@ export default function Venta() {
     tipoDoc: "",
     numDoc: "",
     nombre: "",
-    departamento: "",
-    municipio: "",
+    departamento: "06",
+    municipio: "23",
+    distrito: "01",
     complemento: "",
     correo: "",
     telefono: ""
@@ -81,6 +90,39 @@ export default function Venta() {
   const retencionIva = 0; 
   const totalPagar = subTotal - retencionIva;
 
+  const handleEmitirVenta = async () => {
+    setLoadingEmitir(true);
+    setEmisionError(null);
+    setEmisionResultado(null);
+    try {
+      const payload = {
+        emisor_id: 1,
+        tipo_dte: 1, // Factura
+        receptor_nombre: receptor.nombre || "Consumidor Final",
+        receptor_documento: receptor.numDoc || null,
+        receptor_correo: receptor.correo || null,
+        receptor_direccion: receptor.complemento || "San Salvador",
+        receptor_departamento: receptor.departamento || "06",
+        receptor_municipio: receptor.municipio || "23",
+        receptor_distrito: receptor.distrito || "01",
+        receptor_complemento: receptor.complemento || "Sin complemento",
+        items: items.map(it => ({
+          descripcion: it.descripcion || "Producto/Servicio",
+          cantidad: parseFloat(it.cantidad) || 1,
+          precio: parseFloat(it.precio) || 0,
+        })),
+        total_pagar: parseFloat(totalPagar.toFixed(2)),
+      };
+
+      const res = await batchService.create(payload);
+      setEmisionResultado(res.data);
+    } catch (err) {
+      setEmisionError(err.response?.data?.error || err.message || "Error al emitir Factura ante Ministerio de Hacienda");
+    } finally {
+      setLoadingEmitir(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12">
       {/* HEADER SECTION */}
@@ -97,12 +139,51 @@ export default function Venta() {
             <button className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
               Guardar Borrador
             </button>
-            <button className="px-8 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02]">
-              EMITIR DOCUMENTO
+            <button 
+              onClick={handleEmitirVenta}
+              disabled={loadingEmitir}
+              className="px-8 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02]"
+            >
+              {loadingEmitir ? "EMITIENDO..." : "CONFIRMAR Y EMITIR"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* FEEDBACK BANNERS */}
+      {emisionResultado && (
+        <div className="max-w-7xl mx-auto px-6 mt-6 mb-2">
+          <div className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+            <div className="flex items-center gap-3">
+              <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
+              <div>
+                <p className="font-bold text-sm text-white">Factura Electrónica Emitida y Transmitida</p>
+                <p className="text-xs text-emerald-300 mt-0.5">
+                  Código de Generación: <span className="font-mono text-white">{emisionResultado.dte?.codigo_generacion || emisionResultado.codigo_generacion}</span>
+                </p>
+                <p className="text-xs text-emerald-300">
+                  Sello MH: <span className="font-mono text-white">{emisionResultado.dte?.sello_recepcion || emisionResultado.transmission?.sello || "Otorgado"}</span>
+                </p>
+              </div>
+            </div>
+            <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-full font-bold">
+              ESTADO: {emisionResultado.dte?.estado_actual || "ACEPTADO"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {emisionError && (
+        <div className="max-w-7xl mx-auto px-6 mt-6 mb-2">
+          <div className="bg-rose-950/80 border border-rose-500/40 text-rose-200 p-5 rounded-2xl flex items-center gap-3 shadow-xl">
+            <XCircleIcon className="w-7 h-7 text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-sm text-white">Error durante la Transmisión al Ministerio de Hacienda</p>
+              <p className="text-xs text-rose-300 mt-0.5">{emisionError}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
@@ -197,17 +278,17 @@ export default function Venta() {
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.nombre}
                     onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
+                     </div>
+                {/* Selector de Ubicación Territorial V2.0 */}
+                <div className="md:col-span-2 pt-2">
+                  <SelectorUbicacion
+                    departamento={receptor.departamento}
+                    municipio={receptor.municipio}
+                    distrito={receptor.distrito}
+                    onChange={({ departamento, municipio, distrito }) => {
+                      setReceptor({ ...receptor, departamento, municipio, distrito });
+                    }}
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Departamento</label>
-                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Municipio</label>
-                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                  </div>
                 </div>
               </div>
               <div className="space-y-4">
@@ -215,7 +296,7 @@ export default function Venta() {
                   <label className="text-xs font-semibold text-gray-500 ml-1">Número de Documento</label>
                   <input 
                     type="text" 
-                    placeholder="0000-000000-000-0"
+                    placeholder="0000-000000-000-0" 
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.numDoc}
                     onChange={(e) => setReceptor({...receptor, numDoc: e.target.value})}
@@ -223,17 +304,25 @@ export default function Venta() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Correo Electrónico</label>
-                  <input type="email" placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
+                  <input 
+                    type="email" 
+                    placeholder="ejemplo@correo.com" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={receptor.correo}
+                    onChange={(e) => setReceptor({...receptor, correo: e.target.value})}
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Complemento Dirección</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
                   <textarea 
-                    placeholder="Digite el complemento de la dirección" 
+                    placeholder="Calle, avenida, colonia, número de casa..." 
                     rows="2"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                    value={receptor.complemento}
+                    onChange={(e) => setReceptor({...receptor, complemento: e.target.value})}
                   ></textarea>
                 </div>
-              </div>
+              </div>              </div>
             </div>
           </section>
 
@@ -427,9 +516,13 @@ export default function Venta() {
               </div>
 
               <div className="mt-10">
-                <button className="w-full py-4 bg-blue-500 hover:bg-blue-600 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                <button 
+                  onClick={handleEmitirVenta}
+                  disabled={loadingEmitir}
+                  className="w-full py-4 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                >
                   <CreditCardIcon className="w-5 h-5" />
-                  CONFIRMAR Y EMITIR
+                  {loadingEmitir ? "EMITIENDO A HACIENDA..." : "CONFIRMAR Y EMITIR"}
                 </button>
                 <p className="text-[10px] text-gray-500 text-center mt-4 px-4 leading-relaxed">
                   Al emitir, el documento será firmado digitalmente y enviado automáticamente al Ministerio de Hacienda.
