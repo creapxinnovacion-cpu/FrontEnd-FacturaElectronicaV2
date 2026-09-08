@@ -2,6 +2,19 @@ import { useState, useEffect } from "react";
 import SelectorUbicacion from "./SelectorUbicacion";
 import { batchService } from "../services/api/batch.service";
 import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconomicas";
+import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
+import { CAT_TIPO_PERSONA } from "../utils/catalogos/CatTipoPersona";
+import { DOMICILIO_FISCAL } from "../utils/catalogos/CatDomicilioFiscal";
+import { CAT_DOCUMENTOS_ASOCIADO } from "../utils/catalogos/CatDocumentosAsociado";
+import { CAT_TITULO_REMITEN_BIENES } from "../utils/catalogos/CatTituloRemitenBienes";
+import { CAT_TRASPORTE } from "../utils/catalogos/CatTrasporte";
+import { CAT_RECINTO_FISCAL } from "../utils/catalogos/CatRecintoFiscal";
+import { CAT_TIPO_DONACION } from "../utils/catalogos/CatTipoDonacion";
+import { CAT_DOCUMENTO } from "../utils/catalogos/catTipoDocumento";
+import { CAT_GeneracionDocs } from "../utils/catalogos/catGeneracionDocumentos";
+import { CAT_UNIDAD_MEDIDA } from "../utils/catalogos/catUnidadMedida";
+import { CAT_CONDICION_PAGO } from "../utils/catalogos/catCondicionPago";
+import { CAT_FORMA_PAGOS } from "../utils/catalogos/catFormaPagos";
 import {
   sanitizarSoloNumeros,
   prevenirNoNumerico,
@@ -21,7 +34,9 @@ import {
   ShoppingCartIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  TruckIcon,
+  HeartIcon,
 } from "@heroicons/react/24/outline";
 
 export default function DteForm({ defaultTipoDte }) {
@@ -32,7 +47,7 @@ export default function DteForm({ defaultTipoDte }) {
   // --- STATE ---
   const createEmptyItem = (id = Date.now()) => ({
     id,
-    unidadMedida: "Unidad",
+    unidadMedida: "59", // CAT-014 Unidad por defecto
     descripcion: "",
     cantidad: 1,
     precio: 0,
@@ -62,7 +77,9 @@ export default function DteForm({ defaultTipoDte }) {
   });
 
   const [receptor, setReceptor] = useState({
-    tipoDoc: "NIT",
+    tipoPersona: "1", // CAT-029: 1: Persona Natural, 2: Persona Jurídica
+    domicilioFiscal: "1", // CAT-018: 1: Domiciliado, 2: No Domiciliado
+    tipoDoc: "36", // CAT-022: 36 (NIT), 13 (DUI), etc.
     numDoc: "",
     nombre: "",
     nrc: "",
@@ -85,19 +102,30 @@ export default function DteForm({ defaultTipoDte }) {
 
   const [responsables, setResponsables] = useState({
     emisorNombre: "CRISTIAN ALEJANDRO CAJUL BLANCO",
+    emisorDocTipo: "36",
     emisorDoc: "056347175",
     receptorNombre: "",
+    receptorDocTipo: "36",
     receptorDoc: ""
   });
 
   const [observaciones, setObservaciones] = useState("");
 
   const [docRelacionado, setDocRelacionado] = useState({
-    tipoDoc: "Comprobante de Crédito Fiscal",
-    tipoGeneracion: "Electrónica",
+    tipoDoc: "03", // CAT-002 Comprobante de Crédito Fiscal
+    tipoGeneracion: "2", // CAT-007 Electrónica
+    tipoDocumentoAsociado: "1", // CAT-021 Emisor
     codigoGeneracion: "",
     fechaGeneracion: ""
   });
+
+  const [datosEntrega, setDatosEntrega] = useState({
+    tituloBienes: "01", // CAT-027 Depósito
+    modoTransporte: "1", // CAT-028 Terrestre
+    recintoFiscal: "", // CAT-026 Recinto Fiscal
+  });
+
+  const [tipoDonacion, setTipoDonacion] = useState("1"); // CAT-025 Efectivo
 
   // Reloj dinámico en tiempo real para la fecha y hora de emisión
   const [fechaHoraActual, setFechaHoraActual] = useState(new Date());
@@ -150,6 +178,8 @@ export default function DteForm({ defaultTipoDte }) {
 
   const isNota = emisor.tipoDte === "Nota de Crédito" || emisor.tipoDte === "Nota de Débito";
   const isSujetoExcluido = emisor.tipoDte === "Factura de Sujeto Excluido";
+  const isDonacion = emisor.tipoDte === "Comprobante de Donación" || emisor.tipoDte?.toLowerCase().includes("donación");
+  const isExportacion = emisor.tipoDte === "Facturas de exportación" || emisor.tipoDte?.toLowerCase().includes("exportación");
 
   const totalNoSujeto = items.reduce((acc, item) => acc + (item.subTotalNoSujeto || 0), 0);
   const totalExento = items.reduce((acc, item) => acc + (item.subTotalExento || 0), 0);
@@ -195,7 +225,9 @@ export default function DteForm({ defaultTipoDte }) {
         tipo_dte: tipoDteId,
         receptor_nombre: receptor.nombre || "Consumidor Final",
         receptor_documento: receptor.numDoc || null,
-        receptor_tipo_documento: receptor.tipoDoc || "NIT",
+        receptor_tipo_documento: receptor.tipoDoc || "36",
+        receptor_tipo_persona: receptor.tipoPersona || "1",
+        receptor_domicilio_fiscal: receptor.domicilioFiscal || "1",
         receptor_nrc: receptor.nrc || null,
         receptor_cod_actividad: receptor.codActividad || null,
         receptor_actividad_economica: receptor.actividadEconomica || null,
@@ -209,7 +241,13 @@ export default function DteForm({ defaultTipoDte }) {
           descripcion: it.descripcion || "Producto/Servicio",
           cantidad: parseFloat(it.cantidad) || 1,
           precio: parseFloat(it.precio) || 0,
+          unidad_medida: it.unidadMedida || "59",
         })),
+        condicion_operacion: pago.condicion,
+        forma_pago: pago.metodo,
+        documento_relacionado: isNota ? docRelacionado : null,
+        datos_entrega: datosEntrega,
+        tipo_donacion: isDonacion ? tipoDonacion : null,
         total_pagar: parseFloat(totalPagar.toFixed(2)),
       };
 
@@ -372,25 +410,45 @@ export default function DteForm({ defaultTipoDte }) {
               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-black ml-1">Tipo de Documento</label>
+                    <label className="text-xs font-semibold text-black ml-1">Tipo de Documento (CAT-002)</label>
                     <select
-                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
                       value={docRelacionado.tipoDoc}
                       onChange={(e) => setDocRelacionado({ ...docRelacionado, tipoDoc: e.target.value })}
                     >
-                      <option>Comprobante de Crédito Fiscal</option>
-                      <option>Factura de Consumidor Final</option>
+                      {CAT_DOCUMENTO.map((doc) => (
+                        <option key={doc.codigo} value={doc.codigo} className="text-gray-900 bg-white">
+                          {doc.codigo} - {doc.descripcion}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-black ml-1">Tipo de Generación</label>
+                    <label className="text-xs font-semibold text-black ml-1">Tipo de Generación (CAT-007)</label>
                     <select
-                      className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
                       value={docRelacionado.tipoGeneracion}
                       onChange={(e) => setDocRelacionado({ ...docRelacionado, tipoGeneracion: e.target.value })}
                     >
-                      <option>Electrónica</option>
-                      <option>Papel / Otros</option>
+                      {CAT_GeneracionDocs.map((gen) => (
+                        <option key={gen.codigo} value={gen.codigo} className="text-gray-900 bg-white">
+                          {gen.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-black ml-1">Sujeto Emisor Doc. Asociado (CAT-021)</label>
+                    <select
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                      value={docRelacionado.tipoDocumentoAsociado}
+                      onChange={(e) => setDocRelacionado({ ...docRelacionado, tipoDocumentoAsociado: e.target.value })}
+                    >
+                      {CAT_DOCUMENTOS_ASOCIADO.map((asoc) => (
+                        <option key={asoc.codigo} value={asoc.codigo} className="text-gray-900 bg-white">
+                          {asoc.codigo} - {asoc.descripcion}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -419,6 +477,32 @@ export default function DteForm({ defaultTipoDte }) {
             </section>
           )}
 
+          {/* SECCIÓN DONACIÓN SI APLICA */}
+          {isDonacion && (
+            <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-rose-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
+                <HeartIcon className="w-5 h-5 text-rose-500" />
+                <h3 className="font-bold text-black">Información de la Donación</h3>
+              </div>
+              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-black ml-1">Tipo de Donación (CAT-025)</label>
+                  <select
+                    className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-rose-500/20 cursor-pointer"
+                    value={tipoDonacion}
+                    onChange={(e) => setTipoDonacion(e.target.value)}
+                  >
+                    {CAT_TIPO_DONACION.map((td) => (
+                      <option key={td.codigo} value={td.codigo} className="text-gray-900 bg-white">
+                        {td.codigo} - {td.descripcion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* SECCIÓN RECEPTOR */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -427,32 +511,71 @@ export default function DteForm({ defaultTipoDte }) {
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-black ml-1">Tipo de Persona (CAT-029)</label>
+                    <select
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none cursor-pointer"
+                      value={receptor.tipoPersona}
+                      onChange={(e) => setReceptor({ ...receptor, tipoPersona: e.target.value })}
+                    >
+                      {CAT_TIPO_PERSONA.map((tp) => (
+                        <option key={tp.codigo} value={tp.codigo} className="text-gray-900 bg-white">
+                          {tp.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-black ml-1">Domicilio Fiscal (CAT-018)</label>
+                    <select
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none cursor-pointer"
+                      value={receptor.domicilioFiscal}
+                      onChange={(e) => setReceptor({ ...receptor, domicilioFiscal: e.target.value })}
+                    >
+                      {DOMICILIO_FISCAL.map((df) => (
+                        <option key={df.codigo} value={df.codigo} className="text-gray-900 bg-white">
+                          {df.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-black ml-1">Tipo Documento</label>
+                    <label className="text-xs font-semibold text-black ml-1">Tipo Documento (CAT-022)</label>
                     <select
                       className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none transition-all cursor-pointer"
                       value={receptor.tipoDoc}
                       onChange={(e) => {
                         const nuevoTipo = e.target.value;
                         let docLimpio = receptor.numDoc;
-                        if (nuevoTipo === "DUI") {
+                        if (nuevoTipo === "13" || nuevoTipo === "DUI") {
                           docLimpio = sanitizarSoloNumeros(docLimpio, 9);
-                        } else if (nuevoTipo === "NIT") {
+                        } else if (nuevoTipo === "36" || nuevoTipo === "NIT") {
                           docLimpio = sanitizarSoloNumeros(docLimpio, 14);
                         }
                         setReceptor({ ...receptor, tipoDoc: nuevoTipo, numDoc: docLimpio });
                       }}
                     >
-                      <option className="text-gray-900 bg-white">NIT</option>
-                      <option className="text-gray-900 bg-white">DUI</option>
-                      <option className="text-gray-900 bg-white">Otro</option>
+                      {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
+                        <option key={doc.codigo} value={doc.codigo} className="text-gray-900 bg-white">
+                          {doc.descripcion} ({doc.codigo})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <label className="text-xs font-semibold text-gray-500 ml-1">{receptor.tipoDoc}</label>
-                      {receptor.tipoDoc === "DUI" && receptor.numDoc && (
+                      <label className="text-xs font-semibold text-gray-500 ml-1">
+                        {receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
+                          ? "DUI"
+                          : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
+                          ? "NIT"
+                          : "Número Doc."}
+                      </label>
+                      {(receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI") && receptor.numDoc && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           receptor.numDoc.length === 9
                             ? "bg-emerald-100 text-emerald-700"
@@ -461,7 +584,7 @@ export default function DteForm({ defaultTipoDte }) {
                           {receptor.numDoc.length === 9 ? "✓ DUI 9 dígitos" : `${receptor.numDoc.length}/9 dígitos`}
                         </span>
                       )}
-                      {receptor.tipoDoc === "NIT" && receptor.numDoc && (
+                      {(receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT") && receptor.numDoc && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           receptor.numDoc.length === 14 || receptor.numDoc.length === 9
                             ? "bg-emerald-100 text-emerald-700"
@@ -473,33 +596,49 @@ export default function DteForm({ defaultTipoDte }) {
                     </div>
                     <input
                       type="text"
-                      inputMode={receptor.tipoDoc === "Otro" ? "text" : "numeric"}
-                      pattern={receptor.tipoDoc === "Otro" ? undefined : "[0-9]*"}
-                      maxLength={receptor.tipoDoc === "DUI" ? 9 : receptor.tipoDoc === "NIT" ? 14 : undefined}
+                      inputMode={
+                        receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI" || receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
+                          ? "numeric"
+                          : "text"
+                      }
+                      pattern={
+                        receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI" || receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
+                          ? "[0-9]*"
+                          : undefined
+                      }
+                      maxLength={
+                        receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
+                          ? 9
+                          : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
+                          ? 14
+                          : 30
+                      }
                       placeholder={
-                        receptor.tipoDoc === "DUI"
+                        receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
                           ? "Solo números (9 dígitos)"
-                          : receptor.tipoDoc === "NIT"
+                          : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
                           ? "Solo números (14 dígitos)"
                           : "Número de documento"
                       }
                       className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                       value={receptor.numDoc}
                       onKeyDown={(e) => {
-                        if (receptor.tipoDoc === "DUI" || receptor.tipoDoc === "NIT") {
+                        if (
+                          receptor.tipoDoc === "13" ||
+                          receptor.tipoDoc === "DUI" ||
+                          receptor.tipoDoc === "36" ||
+                          receptor.tipoDoc === "NIT"
+                        ) {
                           prevenirNoNumerico(e);
                         }
                       }}
                       onChange={(e) => {
                         let val = e.target.value;
-                        if (receptor.tipoDoc === "DUI") {
-                          // Solo dígitos numéricos, máximo 9. Sin abecedario, sin caracteres especiales ni inyección SQL
+                        if (receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI") {
                           val = sanitizarSoloNumeros(val, 9);
-                        } else if (receptor.tipoDoc === "NIT") {
-                          // Solo dígitos numéricos, máximo 14
+                        } else if (receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT") {
                           val = sanitizarSoloNumeros(val, 14);
                         } else {
-                          // Sanitizar contra inyección SQL
                           val = val.replace(/['";\-\-/*=]/g, "");
                         }
                         setReceptor({ ...receptor, numDoc: val });
@@ -507,9 +646,9 @@ export default function DteForm({ defaultTipoDte }) {
                     />
                     <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
                       <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
-                      {receptor.tipoDoc === "DUI"
-                        ? "DUI: Solo números (0-9). Abecedario, símbolos y caracteres SQL bloqueados."
-                        : receptor.tipoDoc === "NIT"
+                      {receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
+                        ? "DUI: Solo números (0-9). Abecedario y símbolos SQL bloqueados."
+                        : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
                         ? "NIT: Solo números (0-9). Protegido contra inyección SQL."
                         : "Documento protegido contra inyección SQL."}
                     </p>
@@ -731,13 +870,15 @@ export default function DteForm({ defaultTipoDte }) {
                             />
                           ) : (
                             <select
-                              className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none"
+                              className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none cursor-pointer max-w-[130px]"
                               value={item.unidadMedida}
                               onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
                             >
-                              <option>Unidad</option>
-                              <option>Servicio</option>
-                              <option>Peso</option>
+                              {CAT_UNIDAD_MEDIDA.map((u) => (
+                                <option key={u.codigo} value={u.codigo}>
+                                  {u.descripcion} ({u.codigo})
+                                </option>
+                              ))}
                             </select>
                           )
                         )}
@@ -745,13 +886,15 @@ export default function DteForm({ defaultTipoDte }) {
                       <td className="py-4 px-4">
                         {isSujetoExcluido ? (
                           <select
-                            className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none"
+                            className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none cursor-pointer max-w-[130px]"
                             value={item.unidadMedida}
                             onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
                           >
-                            <option>Unidad</option>
-                            <option>Servicio</option>
-                            <option>Peso</option>
+                            {CAT_UNIDAD_MEDIDA.map((u) => (
+                              <option key={u.codigo} value={u.codigo}>
+                                {u.descripcion} ({u.codigo})
+                              </option>
+                            ))}
                           </select>
                         ) : (
                           <input
@@ -868,26 +1011,31 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-black">Condición</label>
+                  <label className="text-xs font-semibold text-black">Condición (CAT-016)</label>
                   <select
-                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none cursor-pointer"
                     value={pago.condicion}
                     onChange={(e) => setPago({ ...pago, condicion: e.target.value })}
                   >
-                    <option>Contado</option>
-                    <option>Crédito</option>
+                    {CAT_CONDICION_PAGO.map((cp) => (
+                      <option key={cp.codigo} value={cp.descripcion} className="text-gray-900 bg-white">
+                        {cp.descripcion}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-black">Forma Pago</label>
+                  <label className="text-xs font-semibold text-black">Forma Pago (CAT-017)</label>
                   <select
-                    className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none cursor-pointer"
                     value={pago.metodo}
                     onChange={(e) => setPago({ ...pago, metodo: e.target.value })}
                   >
-                    <option>Billetes y monedas</option>
-                    <option>Tarjeta de Crédito</option>
-                    <option>Transferencia</option>
+                    {CAT_FORMA_PAGOS.map((fp) => (
+                      <option key={fp.codigo} value={fp.descripcion} className="text-gray-900 bg-white">
+                        {fp.descripcion}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -938,31 +1086,112 @@ export default function DteForm({ defaultTipoDte }) {
                 ></textarea>
               </div>
             </section>
+
             {/*seccion de datos adicionales de entrega */}
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
-                <InformationCircleIcon className="w-5 h-5 text-black" />
-                <h3 className="font-bold text-gray-700">{isNota ? 'Información obligatoria, recepción entrega documento' : 'Datos adicionales entrega'}</h3>
+                <TruckIcon className="w-5 h-5 text-black" />
+                <h3 className="font-bold text-gray-700">{isNota ? 'Información obligatoria, recepción entrega documento' : 'Datos adicionales entrega y transporte'}</h3>
               </div>
               <div className="space-y-6">
+                {/* Parámetros de Traslado y Transporte (CAT-027, CAT-028, CAT-026) */}
+                <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-4">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase">
+                    Parámetros de Bienes y Transporte (MH)
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">Título de Remisión (CAT-027)</label>
+                      <select
+                        className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
+                        value={datosEntrega.tituloBienes}
+                        onChange={(e) => setDatosEntrega({ ...datosEntrega, tituloBienes: e.target.value })}
+                      >
+                        {CAT_TITULO_REMITEN_BIENES.map((tb) => (
+                          <option key={tb.codigo} value={tb.codigo} className="text-gray-900 bg-white">
+                            {tb.codigo} - {tb.descripcion}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">Modo de Transporte (CAT-028)</label>
+                      <select
+                        className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
+                        value={datosEntrega.modoTransporte}
+                        onChange={(e) => setDatosEntrega({ ...datosEntrega, modoTransporte: e.target.value })}
+                      >
+                        {CAT_TRASPORTE.map((tr) => (
+                          <option key={tr.codigo} value={tr.codigo} className="text-gray-900 bg-white">
+                            {tr.codigo} - {tr.descripcion}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {(isExportacion || datosEntrega.recintoFiscal !== "") && (
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="text-[10px] font-semibold text-black ml-1 uppercase">Recinto Fiscal Aduanero (CAT-026)</label>
+                        <select
+                          className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
+                          value={datosEntrega.recintoFiscal}
+                          onChange={(e) => setDatosEntrega({ ...datosEntrega, recintoFiscal: e.target.value })}
+                        >
+                          <option value="" className="text-gray-900 bg-white">-- No aplica / Ninguno --</option>
+                          {CAT_RECINTO_FISCAL.map((rf) => (
+                            <option key={rf.codigo} value={rf.codigo} className="text-gray-900 bg-white">
+                              {rf.codigo} - {rf.descripcion}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold text-blue-600 uppercase">
                     {isNota ? 'Responsable por parte del Emisor' : 'Responsable de emitir el documento'}
                   </p>
                   <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento (Solo Números)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={14}
-                        placeholder="Solo dígitos (máx. 14)"
-                        className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
-                        value={responsables.emisorDoc}
-                        onKeyDown={prevenirNoNumerico}
-                        onChange={(e) => setResponsables({ ...responsables, emisorDoc: sanitizarSoloNumeros(e.target.value, 14) })}
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-black ml-1 uppercase">Tipo Doc (CAT-022)</label>
+                        <select
+                          className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
+                          value={responsables.emisorDocTipo}
+                          onChange={(e) => setResponsables({ ...responsables, emisorDocTipo: e.target.value })}
+                        >
+                          {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
+                            <option key={doc.codigo} value={doc.codigo} className="text-gray-900 bg-white">
+                              {doc.descripcion} ({doc.codigo})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento</label>
+                        <input
+                          type="text"
+                          inputMode={responsables.emisorDocTipo === "13" || responsables.emisorDocTipo === "36" ? "numeric" : "text"}
+                          pattern={responsables.emisorDocTipo === "13" || responsables.emisorDocTipo === "36" ? "[0-9]*" : undefined}
+                          maxLength={responsables.emisorDocTipo === "13" ? 9 : responsables.emisorDocTipo === "36" ? 14 : 30}
+                          placeholder="Número de documento"
+                          className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                          value={responsables.emisorDoc}
+                          onKeyDown={(e) => {
+                            if (responsables.emisorDocTipo === "13" || responsables.emisorDocTipo === "36") {
+                              prevenirNoNumerico(e);
+                            }
+                          }}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (responsables.emisorDocTipo === "13") val = sanitizarSoloNumeros(val, 9);
+                            else if (responsables.emisorDocTipo === "36") val = sanitizarSoloNumeros(val, 14);
+                            else val = val.replace(/['";\-\-/*=]/g, "");
+                            setResponsables({ ...responsables, emisorDoc: val });
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-semibold text-black ml-1 uppercase">Nombre</label>
@@ -982,19 +1211,45 @@ export default function DteForm({ defaultTipoDte }) {
                     {isNota ? 'Responsable por parte del Receptor' : 'Responsable de recibir el documento'}
                   </p>
                   <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento (Solo Números)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={14}
-                        placeholder="Solo dígitos (máx. 14)"
-                        className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
-                        value={responsables.receptorDoc}
-                        onKeyDown={prevenirNoNumerico}
-                        onChange={(e) => setResponsables({ ...responsables, receptorDoc: sanitizarSoloNumeros(e.target.value, 14) })}
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-black ml-1 uppercase">Tipo Doc (CAT-022)</label>
+                        <select
+                          className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
+                          value={responsables.receptorDocTipo}
+                          onChange={(e) => setResponsables({ ...responsables, receptorDocTipo: e.target.value })}
+                        >
+                          {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
+                            <option key={doc.codigo} value={doc.codigo} className="text-gray-900 bg-white">
+                              {doc.descripcion} ({doc.codigo})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="text-[10px] font-semibold text-black ml-1 uppercase">N°. Documento</label>
+                        <input
+                          type="text"
+                          inputMode={responsables.receptorDocTipo === "13" || responsables.receptorDocTipo === "36" ? "numeric" : "text"}
+                          pattern={responsables.receptorDocTipo === "13" || responsables.receptorDocTipo === "36" ? "[0-9]*" : undefined}
+                          maxLength={responsables.receptorDocTipo === "13" ? 9 : responsables.receptorDocTipo === "36" ? 14 : 30}
+                          placeholder="Número de documento"
+                          className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
+                          value={responsables.receptorDoc}
+                          onKeyDown={(e) => {
+                            if (responsables.receptorDocTipo === "13" || responsables.receptorDocTipo === "36") {
+                              prevenirNoNumerico(e);
+                            }
+                          }}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (responsables.receptorDocTipo === "13") val = sanitizarSoloNumeros(val, 9);
+                            else if (responsables.receptorDocTipo === "36") val = sanitizarSoloNumeros(val, 14);
+                            else val = val.replace(/['";\-\-/*=]/g, "");
+                            setResponsables({ ...responsables, receptorDoc: val });
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-semibold text-black ml-1 uppercase">Nombre</label>

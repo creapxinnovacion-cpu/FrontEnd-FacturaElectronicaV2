@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import SelectorUbicacion from "../components/SelectorUbicacion";
 import { batchService } from "../services/api/batch.service";
+import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
+import { CAT_TIPO_PERSONA } from "../utils/catalogos/CatTipoPersona";
+import { DOMICILIO_FISCAL } from "../utils/catalogos/CatDomicilioFiscal";
+import { CAT_UNIDAD_MEDIDA } from "../utils/catalogos/catUnidadMedida";
+import { CAT_CONDICION_PAGO } from "../utils/catalogos/catCondicionPago";
+import { CAT_FORMA_PAGOS } from "../utils/catalogos/catFormaPagos";
+import { CAT_DOCUMENTO } from "../utils/catalogos/catTipoDocumento";
 import { 
   PlusIcon, 
   TrashIcon, 
@@ -38,7 +45,9 @@ export default function Venta() {
   });
 
   const [receptor, setReceptor] = useState({
-    tipoDoc: "",
+    tipoPersona: "1",
+    domicilioFiscal: "1",
+    tipoDoc: "36",
     numDoc: "",
     nombre: "",
     departamento: "06",
@@ -257,17 +266,50 @@ export default function Venta() {
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo Persona (CAT-029)</label>
+                    <select
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.tipoPersona}
+                      onChange={(e) => setReceptor({ ...receptor, tipoPersona: e.target.value })}
+                    >
+                      {CAT_TIPO_PERSONA.map((tp) => (
+                        <option key={tp.codigo} value={tp.codigo}>
+                          {tp.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Domicilio Fiscal (CAT-018)</label>
+                    <select
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.domicilioFiscal}
+                      onChange={(e) => setReceptor({ ...receptor, domicilioFiscal: e.target.value })}
+                    >
+                      {DOMICILIO_FISCAL.map((df) => (
+                        <option key={df.codigo} value={df.codigo}>
+                          {df.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento (Opcional)</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento (CAT-022)</label>
                   <select 
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.tipoDoc}
                     onChange={(e) => setReceptor({...receptor, tipoDoc: e.target.value})}
                   >
-                    <option value="">-- Seleccione --</option>
-                    <option value="NIT">NIT</option>
-                    <option value="DUI">DUI</option>
-                    <option value="PASAPORTE">Pasaporte</option>
+                    <option value="">-- Seleccione Tipo de Documento --</option>
+                    {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
+                      <option key={doc.codigo} value={doc.codigo}>
+                        {doc.descripcion} ({doc.codigo})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
@@ -278,7 +320,8 @@ export default function Venta() {
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.nombre}
                     onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
-                     </div>
+                  />
+                </div>
                 {/* Selector de Ubicación Territorial V2.0 */}
                 <div className="md:col-span-2 pt-2">
                   <SelectorUbicacion
@@ -357,10 +400,16 @@ export default function Venta() {
                   {items.map((item) => (
                     <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 px-8">
-                        <select className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none">
-                          <option>Unidad</option>
-                          <option>Servicio</option>
-                          <option>Peso</option>
+                        <select
+                          className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none cursor-pointer"
+                          value={item.unidadMedida}
+                          onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
+                        >
+                          {CAT_UNIDAD_MEDIDA.map((u) => (
+                            <option key={u.codigo} value={u.descripcion}>
+                              {u.descripcion}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td className="py-4 px-4">
@@ -416,18 +465,31 @@ export default function Venta() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Condición</label>
-                  <select className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none">
-                    <option>Contado</option>
-                    <option>Crédito</option>
+                  <label className="text-xs font-semibold text-gray-500">Condición (CAT-016)</label>
+                  <select
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    value={pago.condicion}
+                    onChange={(e) => setPago({ ...pago, condicion: e.target.value })}
+                  >
+                    {CAT_CONDICION_PAGO.map((cp) => (
+                      <option key={cp.codigo} value={cp.descripcion}>
+                        {cp.descripcion}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Forma de Pago</label>
-                  <select className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none">
-                    <option>Billetes y monedas</option>
-                    <option>Tarjeta de Crédito</option>
-                    <option>Transferencia</option>
+                  <label className="text-xs font-semibold text-gray-500">Forma de Pago (CAT-017)</label>
+                  <select
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                    value={pago.metodo}
+                    onChange={(e) => setPago({ ...pago, metodo: e.target.value })}
+                  >
+                    {CAT_FORMA_PAGOS.map((fp) => (
+                      <option key={fp.codigo} value={fp.descripcion}>
+                        {fp.descripcion}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

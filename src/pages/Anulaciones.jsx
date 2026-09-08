@@ -12,6 +12,7 @@ import {
 import { batchService } from "../services/api/batch.service";
 import { eventoService } from "../services/api/evento.service";
 import { CAT_TIPO_INVALIDACION } from "../utils/catalogos/catInvalidacion";
+import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
 
 export default function Anulaciones() {
   const [dtes, setDtes] = useState([]);
@@ -329,14 +330,28 @@ export default function Anulaciones() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 uppercase">Doc. Responsable (NIT) *</label>
-                  <input
-                    type="text"
-                    value={formData.responsable_doc_num}
-                    onChange={(e) => setFormData({ ...formData, responsable_doc_num: e.target.value })}
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
-                    required
-                  />
+                  <label className="text-xs font-bold text-gray-600 uppercase">Doc. Responsable *</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <select
+                      value={formData.responsable_doc_tipo}
+                      onChange={(e) => setFormData({ ...formData, responsable_doc_tipo: e.target.value })}
+                      className="border border-gray-200 rounded-2xl px-3 py-2 text-xs bg-gray-50 outline-none"
+                    >
+                      {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
+                        <option key={doc.codigo} value={doc.codigo}>
+                          {doc.descripcion} ({doc.codigo})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={formData.responsable_doc_num}
+                      onChange={(e) => setFormData({ ...formData, responsable_doc_num: e.target.value })}
+                      placeholder="Número doc."
+                      className="sm:col-span-2 border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -353,13 +368,27 @@ export default function Anulaciones() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-600 uppercase">Doc. Solicitante *</label>
-                  <input
-                    type="text"
-                    value={formData.solicita_doc_num}
-                    onChange={(e) => setFormData({ ...formData, solicita_doc_num: e.target.value })}
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
-                    required
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <select
+                      value={formData.solicita_doc_tipo}
+                      onChange={(e) => setFormData({ ...formData, solicita_doc_tipo: e.target.value })}
+                      className="border border-gray-200 rounded-2xl px-3 py-2 text-xs bg-gray-50 outline-none"
+                    >
+                      {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
+                        <option key={doc.codigo} value={doc.codigo}>
+                          {doc.descripcion} ({doc.codigo})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={formData.solicita_doc_num}
+                      onChange={(e) => setFormData({ ...formData, solicita_doc_num: e.target.value })}
+                      placeholder="Número doc."
+                      className="sm:col-span-2 border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

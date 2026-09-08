@@ -1,5 +1,7 @@
 import Select from "../utils/ui/Select";
-import { CAT_GIROS } from "../utils/catalogos/catGiro";
+import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconomicas";
+import { CAT_TIPO_PERSONA } from "../utils/catalogos/CatTipoPersona";
+import { DOMICILIO_FISCAL } from "../utils/catalogos/CatDomicilioFiscal";
 import { useState, useEffect } from "react";
 import Input from "../utils/ui/Input";
 import SelectorUbicacion from "../components/SelectorUbicacion";
@@ -102,7 +104,18 @@ export default function EmisorConfig() {
     if (name === "nrc") {
       val = sanitizarSoloNumeros(val, 8);
     }
-    setForm((prev) => ({ ...prev, [name]: val }));
+    
+    setForm((prev) => {
+      const updated = { ...prev, [name]: val };
+      if (name === "cod_actividad") {
+        const item = CAT_ACTIVIDAD_ECONOMICA.find((a) => a.codigo === val);
+        if (item) {
+          updated.desc_actividad = item.descripcion;
+        }
+      }
+      return updated;
+    });
+
     if (!files) validarCampo(name, val);
   };
 
@@ -119,10 +132,12 @@ export default function EmisorConfig() {
         nit: form.nit,
         nrc: form.nrc,
         cod_actividad: form.cod_actividad,
-        desc_actividad: form.cod_actividad, // Simplificado
+        desc_actividad: form.desc_actividad || form.cod_actividad,
         direccion: form.direccion,
-        departamento: form.departamento,
-        municipio: form.municipio,
+        departamento: form.departamento || "06",
+        municipio: form.municipio || "23",
+        distrito: form.distrito || "01",
+        complemento: form.complemento || form.direccion,
         correo: form.correo,
         telefono: form.telefono,
       };
@@ -181,7 +196,17 @@ export default function EmisorConfig() {
           <Input name="nombre_comercial" value={form.nombre_comercial} placeholder="Nombre comercial" onChange={handleChange} />
           <Input name="nit" value={form.nit} placeholder="NIT *" onChange={handleChange} error={errores.nit} />
           <Input name="nrc" value={form.nrc} placeholder="NRC *" onChange={handleChange} error={errores.nrc} />
-          <Select name="cod_actividad" value={form.cod_actividad} placeholder="Seleccione giro *" options={CAT_GIROS} onChange={handleChange} error={errores.cod_actividad} />
+          <Select
+            name="cod_actividad"
+            value={form.cod_actividad}
+            placeholder="Seleccione Actividad Económica (CAT-019) *"
+            options={CAT_ACTIVIDAD_ECONOMICA.map((a) => ({
+              codigo: a.codigo,
+              descripcion: `${a.codigo} - ${a.descripcion}`,
+            }))}
+            onChange={handleChange}
+            error={errores.cod_actividad}
+          />
           <Input name="correo" value={form.correo} placeholder="Correo electrónico" onChange={handleChange} error={errores.correo} />
           <Input name="telefono" value={form.telefono} placeholder="Teléfono" onChange={handleChange} />
         </div>
