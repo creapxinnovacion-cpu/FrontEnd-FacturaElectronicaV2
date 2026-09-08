@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import SelectorUbicacion from "../components/SelectorUbicacion";
+import ModalItemDte from "../components/ModalItemDte";
 import { batchService } from "../services/api/batch.service";
+import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconomicas";
 import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
-import { CAT_TIPO_PERSONA } from "../utils/catalogos/CatTipoPersona";
-import { DOMICILIO_FISCAL } from "../utils/catalogos/CatDomicilioFiscal";
-import { CAT_UNIDAD_MEDIDA } from "../utils/catalogos/catUnidadMedida";
 import { CAT_CONDICION_PAGO } from "../utils/catalogos/catCondicionPago";
 import { CAT_FORMA_PAGOS } from "../utils/catalogos/catFormaPagos";
-import { CAT_DOCUMENTO } from "../utils/catalogos/catTipoDocumento";
 import { 
   PlusIcon, 
   TrashIcon, 
+  PencilSquareIcon,
   DocumentTextIcon, 
   UserIcon, 
   MapPinIcon, 
@@ -18,7 +17,8 @@ import {
   InformationCircleIcon,
   ShoppingCartIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ChevronDownIcon
 } from "@heroicons/react/24/outline";
 
 export default function Venta() {
@@ -26,11 +26,30 @@ export default function Venta() {
   const [emisionResultado, setEmisionResultado] = useState(null);
   const [emisionError, setEmisionError] = useState(null);
 
-  // --- STATE ---
+  // --- MODAL ÍTEM DTE ---
+  const [modalItemOpen, setModalItemOpen] = useState(false);
+  const [itemParaEditar, setItemParaEditar] = useState(null);
+
+  // --- ESTADO DE ITEMS ---
   const [items, setItems] = useState([
-    { id: 1, unidadMedida: "Unidad", descripcion: "Producto Ejemplo", cantidad: 1, precio: 0.00, total: 0.00 }
+    {
+      id: 1,
+      tipoItem: "1",
+      cantidad: 1,
+      unidadMedida: "59",
+      unidadMedidaDesc: "Unidad",
+      codigo: "PROD-001",
+      descripcion: "Producto o Servicio Ejemplo",
+      tipoVenta: "Gravado",
+      precio: 10.00,
+      descuento: 0,
+      total: 10.00,
+      tributos: ["20"],
+      tributosInfo: []
+    }
   ]);
 
+  // --- DATOS DEL EMISOR ---
   const [emisor, setEmisor] = useState({
     nit: "056347175",
     nrc: "3400370",
@@ -44,12 +63,27 @@ export default function Venta() {
     hora: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
   });
 
+  // Reloj en tiempo real
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setEmisor(prev => ({
+        ...prev,
+        fecha: new Date().toLocaleDateString('es-SV'),
+        hora: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+      }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // --- DATOS DEL RECEPTOR (Alineado estrictamente a capturas MH) ---
   const [receptor, setReceptor] = useState({
-    tipoPersona: "1",
-    domicilioFiscal: "1",
-    tipoDoc: "36",
+    tipoDoc: "36", // NIT por defecto
     numDoc: "",
     nombre: "",
+    nrc: "",
+    nombreComercial: "",
+    codActividad: "",
+    actividadEconomica: "",
     departamento: "06",
     municipio: "23",
     distrito: "01",
@@ -58,68 +92,130 @@ export default function Venta() {
     telefono: ""
   });
 
+  // --- CONDICIÓN Y FORMAS DE PAGO (Alineado a captura 001902 y 002628) ---
   const [pago, setPago] = useState({
     condicion: "Contado",
-    metodo: "Billetes y monedas",
-    pagos: []
-  });
-
-  const [responsables, setResponsables] = useState({
-    emisorNombre: "CRISTIAN ALEJANDRO CAJUL BLANCO",
-    emisorDoc: "056347175",
-    receptorNombre: "",
-    receptorDoc: ""
+    formaSeleccionada: "Billetes y monedas",
+    montoNuevo: "",
+    numDocPago: "",
+    listaPagos: [
+      { id: 1, formaPago: "Billetes y monedas", monto: 10.00, numDoc: "" }
+    ]
   });
 
   const [observaciones, setObservaciones] = useState("");
+  const [retencionIva, setRetencionIva] = useState(0);
 
-  // --- LOGIC ---
-  const agregarItem = () => {
-    setItems([...items, { id: Date.now(), unidadMedida: "Unidad", descripcion: "", cantidad: 1, precio: 0, total: 0 }]);
+  // --- OPERACIONES Y TOTALES ---
+  const totalGravado = items.filter(it => it.tipoVenta === "Gravado").reduce((acc, it) => acc + it.total, 0);
+  const totalExento = items.filter(it => it.tipoVenta === "Exento").reduce((acc, it) => acc + it.total, 0);
+  const totalNoSujeto = items.filter(it => it.tipoVenta === "No sujeto").reduce((acc, it) => acc + it.total, 0);
+  const subTotal = items.reduce((acc, item) => acc + item.total, 0);
+  const totalPagar = Math.max(0, subTotal - retencionIva);
+
+  // Sincronizar monto del pago si solo hay uno
+  useEffect(() => {
+    if (pago.listaPagos.length === 1 && pago.listaPagos[0].monto !== totalPagar) {
+      setPago(prev => ({
+        ...prev,
+        listaPagos: [{ ...prev.listaPagos[0], monto: totalPagar }]
+      }));
+    }
+  }, [totalPagar]);
+
+  // Manejo de Ítems
+  const handleAbrirModalNuevo = () => {
+    setItemParaEditar(null);
+    setModalItemOpen(true);
   };
 
-  const eliminarItem = (id) => {
+  const handleAbrirModalEditar = (item) => {
+    setItemParaEditar(item);
+    setModalItemOpen(true);
+  };
+
+  const handleGuardarItem = (itemGuardado) => {
+    if (itemParaEditar) {
+      setItems(items.map(it => it.id === itemGuardado.id ? itemGuardado : it));
+    } else {
+      setItems([...items, itemGuardado]);
+    }
+    setItemParaEditar(null);
+  };
+
+  const handleEliminarItem = (id) => {
     setItems(items.filter(item => item.id !== id));
   };
 
-  const updateItem = (id, field, value) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updated = { ...item, [field]: value };
-        if (field === 'cantidad' || field === 'precio') {
-          updated.total = updated.cantidad * updated.precio;
+  // Manejo de Pagos
+  const handleAgregarPago = () => {
+    const monto = parseFloat(pago.montoNuevo);
+    if (!monto || monto <= 0) return;
+
+    setPago(prev => ({
+      ...prev,
+      listaPagos: [
+        ...prev.listaPagos,
+        {
+          id: Date.now(),
+          formaPago: prev.formaSeleccionada,
+          monto: parseFloat(monto.toFixed(2)),
+          numDoc: prev.numDocPago.trim()
         }
-        return updated;
-      }
-      return item;
+      ],
+      montoNuevo: "",
+      numDocPago: ""
     }));
   };
 
-  const subTotal = items.reduce((acc, item) => acc + item.total, 0);
-  const retencionIva = 0; 
-  const totalPagar = subTotal - retencionIva;
+  const handleEliminarPago = (id) => {
+    setPago(prev => ({
+      ...prev,
+      listaPagos: prev.listaPagos.filter(p => p.id !== id)
+    }));
+  };
 
+  // Emisión DTE
   const handleEmitirVenta = async () => {
     setLoadingEmitir(true);
     setEmisionError(null);
     setEmisionResultado(null);
     try {
+      if (items.length === 0) {
+        throw new Error("Debe agregar al menos un producto o servicio antes de emitir.");
+      }
+
       const payload = {
         emisor_id: 1,
         tipo_dte: 1, // Factura
         receptor_nombre: receptor.nombre || "Consumidor Final",
         receptor_documento: receptor.numDoc || null,
         receptor_correo: receptor.correo || null,
+        receptor_telefono: receptor.telefono || null,
         receptor_direccion: receptor.complemento || "San Salvador",
         receptor_departamento: receptor.departamento || "06",
         receptor_municipio: receptor.municipio || "23",
         receptor_distrito: receptor.distrito || "01",
         receptor_complemento: receptor.complemento || "Sin complemento",
         items: items.map(it => ({
+          tipo_item: parseInt(it.tipoItem || "1"),
+          codigo: it.codigo || null,
           descripcion: it.descripcion || "Producto/Servicio",
           cantidad: parseFloat(it.cantidad) || 1,
+          unidad_medida: it.unidadMedida || "59",
           precio: parseFloat(it.precio) || 0,
+          tipo_venta: it.tipoVenta || "Gravado",
+          descuento: parseFloat(it.descuento) || 0,
+          total: parseFloat(it.total) || 0,
+          tributos: it.tributos || ["20"]
         })),
+        pagos: pago.listaPagos.map(p => ({
+          forma_pago: p.formaPago,
+          monto: p.monto,
+          num_doc: p.numDoc || null
+        })),
+        condicion_operacion: pago.condicion,
+        observaciones: observaciones || null,
         total_pagar: parseFloat(totalPagar.toFixed(2)),
       };
 
@@ -134,26 +230,38 @@ export default function Venta() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12">
+      {/* MODAL ÍTEM DTE OFICIAL MH */}
+      <ModalItemDte
+        isOpen={modalItemOpen}
+        onClose={() => {
+          setModalItemOpen(false);
+          setItemParaEditar(null);
+        }}
+        onSave={handleGuardarItem}
+        initialData={itemParaEditar}
+      />
+
       {/* HEADER SECTION */}
       <div className="bg-[#1A2B3C] text-white pt-8 pb-16 px-6 mb-[-4rem]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
               <DocumentTextIcon className="w-8 h-8 text-blue-400" />
-              Nueva Factura Electrónica
+              Factura Electrónica
             </h1>
-            <p className="text-blue-200 mt-1 opacity-80">Generación de DTE para el área de ventas</p>
+            <p className="text-blue-200 mt-1 opacity-80 flex items-center gap-3 text-xs">
+              <span>Fecha DTE: <strong className="text-white">{emisor.fecha}</strong></span>
+              <span>•</span>
+              <span>Hora: <strong className="text-white">{emisor.hora}</strong></span>
+            </p>
           </div>
           <div className="flex gap-3">
-            <button className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
-              Guardar Borrador
-            </button>
             <button 
               onClick={handleEmitirVenta}
               disabled={loadingEmitir}
               className="px-8 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02]"
             >
-              {loadingEmitir ? "EMITIENDO..." : "CONFIRMAR Y EMITIR"}
+              {loadingEmitir ? "EMITIENDO A HACIENDA..." : "GENERAR DOCUMENTO"}
             </button>
           </div>
         </div>
@@ -166,7 +274,7 @@ export default function Venta() {
             <div className="flex items-center gap-3">
               <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
               <div>
-                <p className="font-bold text-sm text-white">Factura Electrónica Emitida y Transmitida</p>
+                <p className="font-bold text-sm text-white">Factura Electrónica Emitida y Transmitida Exitosamente</p>
                 <p className="text-xs text-emerald-300 mt-0.5">
                   Código de Generación: <span className="font-mono text-white">{emisionResultado.dte?.codigo_generacion || emisionResultado.codigo_generacion}</span>
                 </p>
@@ -198,105 +306,16 @@ export default function Venta() {
         
         {/* COLUMNA IZQUIERDA (CONTENIDO PRINCIPAL) */}
         <div className="lg:col-span-8 space-y-8">
-          
-          {/* SECCIÓN EMISOR (DETALLES COMPLETOS) */}
-          <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-blue-50/30 px-8 py-3 border-b border-gray-100 flex justify-between items-center">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Datos del Emisor</p>
-              <span className="text-[10px] font-medium text-blue-400">Configurado vía Certificado</span>
-            </div>
-            <div className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-1">
-                  <p className="text-sm font-black text-gray-900 tracking-tight">{emisor.nombre}</p>
-                  <p className="text-xs text-gray-500 font-medium">NIT: {emisor.nit} | NRC: {emisor.nrc}</p>
-                  <div className="pt-2 flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-600 rounded">ACTIVIDAD</span>
-                    <p className="text-xs text-gray-700">{emisor.actividad}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 border-l border-gray-100 pl-8">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Tipo de Documento</p>
-                    <select 
-                      className="w-full bg-blue-50 border border-blue-100 rounded-xl px-3 py-1.5 text-xs font-bold text-blue-600 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
-                      value={emisor.tipoDte}
-                      onChange={(e) => setEmisor({...emisor, tipoDte: e.target.value})}
-                    >
-                      <option value="Factura Consumidor Final">Factura Consumidor Final</option>
-                      <option value="Comprobante de Crédito Fiscal">Comprobante de Crédito Fiscal</option>
-                      <option value="Nota de Crédito">Nota de Crédito</option>
-                      <option value="Nota de Débito">Nota de Débito</option>
-                      <option value="Factura de Sujeto Excluido">Factura de Sujeto Excluido</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Emisión</p>
-                    <p className="text-sm text-gray-700 font-medium">{emisor.fecha}</p>
-                    <p className="text-[10px] text-gray-400">{emisor.hora}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t border-gray-50 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex items-start gap-3">
-                  <MapPinIcon className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Establecimiento / Dirección</p>
-                    <p className="text-xs text-gray-600 leading-relaxed">{emisor.direccion}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <InformationCircleIcon className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Contacto</p>
-                    <p className="text-xs text-gray-600">{emisor.correo}</p>
-                    <p className="text-xs text-gray-600">{emisor.telefono}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
 
-          {/* SECCIÓN RECEPTOR */}
+          {/* SECCIÓN RECEPTOR (ALINEADA AL SISTEMA GRATUITO MH) */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
               <UserIcon className="w-5 h-5 text-gray-400" />
-              <h3 className="font-bold text-gray-700">Información del Receptor</h3>
+              <h3 className="font-bold text-gray-700">Datos del Receptor</h3>
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Columna Izquierda Receptor */}
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Tipo Persona (CAT-029)</label>
-                    <select
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/20 outline-none"
-                      value={receptor.tipoPersona}
-                      onChange={(e) => setReceptor({ ...receptor, tipoPersona: e.target.value })}
-                    >
-                      {CAT_TIPO_PERSONA.map((tp) => (
-                        <option key={tp.codigo} value={tp.codigo}>
-                          {tp.descripcion}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-500 ml-1">Domicilio Fiscal (CAT-018)</label>
-                    <select
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/20 outline-none"
-                      value={receptor.domicilioFiscal}
-                      onChange={(e) => setReceptor({ ...receptor, domicilioFiscal: e.target.value })}
-                    >
-                      {DOMICILIO_FISCAL.map((df) => (
-                        <option key={df.codigo} value={df.codigo}>
-                          {df.descripcion}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento (CAT-022)</label>
                   <select 
@@ -312,178 +331,260 @@ export default function Venta() {
                     ))}
                   </select>
                 </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Nombre / Razón Social</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Número de Documento / NIT</label>
                   <input 
                     type="text" 
-                    placeholder="Nombre completo del receptor" 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                    value={receptor.nombre}
-                    onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
-                  />
-                </div>
-                {/* Selector de Ubicación Territorial V2.0 */}
-                <div className="md:col-span-2 pt-2">
-                  <SelectorUbicacion
-                    departamento={receptor.departamento}
-                    municipio={receptor.municipio}
-                    distrito={receptor.distrito}
-                    onChange={({ departamento, municipio, distrito }) => {
-                      setReceptor({ ...receptor, departamento, municipio, distrito });
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Número de Documento</label>
-                  <input 
-                    type="text" 
-                    placeholder="0000-000000-000-0" 
+                    placeholder="Digite el número de documento" 
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.numDoc}
                     onChange={(e) => setReceptor({...receptor, numDoc: e.target.value})}
                   />
                 </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Correo Electrónico</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Nombre del Cliente / Razón Social *</label>
                   <input 
-                    type="email" 
-                    placeholder="ejemplo@correo.com" 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                    value={receptor.correo}
-                    onChange={(e) => setReceptor({...receptor, correo: e.target.value})}
+                    type="text" 
+                    placeholder="Nombre completo del cliente" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    value={receptor.nombre}
+                    onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
+                    <input 
+                      type="text" 
+                      placeholder="Número de registro" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.nrc}
+                      onChange={(e) => setReceptor({...receptor, nrc: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Nombre Comercial</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nombre comercial" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.nombreComercial}
+                      onChange={(e) => setReceptor({...receptor, nombreComercial: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-500 ml-1">Actividad Económica (CAT-019)</label>
+                  <select
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={receptor.codActividad ? `${receptor.codActividad}||${receptor.actividadEconomica}` : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setReceptor({ ...receptor, codActividad: "", actividadEconomica: "" });
+                      } else {
+                        const [cod, ...desc] = val.split("||");
+                        setReceptor({ ...receptor, codActividad: cod, actividadEconomica: desc.join("||") });
+                      }
+                    }}
+                  >
+                    <option value="">-- Seleccione Actividad Económica --</option>
+                    {CAT_ACTIVIDAD_ECONOMICA.map((act, idx) => (
+                      <option key={`${act.codigo}-${idx}`} value={`${act.codigo}||${act.descripcion}`}>
+                        {act.codigo} - {act.descripcion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Columna Derecha Receptor (Ubicación y Contacto) */}
+              <div className="space-y-4">
+                <SelectorUbicacion
+                  departamento={receptor.departamento}
+                  municipio={receptor.municipio}
+                  distrito={receptor.distrito}
+                  gridCols="grid-cols-1 md:grid-cols-2"
+                  onChange={({ departamento, municipio, distrito }) => {
+                    setReceptor({ ...receptor, departamento, municipio, distrito });
+                  }}
+                />
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
                   <textarea 
-                    placeholder="Calle, avenida, colonia, número de casa..." 
+                    placeholder="Digite el complemento de la dirección" 
                     rows="2"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
                     value={receptor.complemento}
                     onChange={(e) => setReceptor({...receptor, complemento: e.target.value})}
                   ></textarea>
                 </div>
-              </div>              </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Correo Electrónico</label>
+                    <input 
+                      type="email" 
+                      placeholder="ejemplo@correo.com" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.correo}
+                      onChange={(e) => setReceptor({...receptor, correo: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">Teléfono</label>
+                    <input 
+                      type="text" 
+                      placeholder="7000-0000" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={receptor.telefono}
+                      onChange={(e) => setReceptor({...receptor, telefono: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
-          {/* SECCIÓN PRODUCTOS */}
+          {/* SECCIÓN DETALLE DE FACTURA / ÍTEMS (IDÉNTICO A CAPTURA MH) */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <ShoppingCartIcon className="w-5 h-5 text-gray-400" />
-                <h3 className="font-bold text-gray-700">Detalle de la Operación</h3>
+                <h3 className="font-bold text-gray-700">Datos de la Factura (Detalle de DTE)</h3>
               </div>
               <button 
-                onClick={agregarItem}
-                className="inline-flex items-center px-4 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                type="button"
+                onClick={handleAbrirModalNuevo}
+                className="inline-flex items-center px-4 py-2 bg-[#0088FF] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md transition-all transform active:scale-95"
               >
-                <PlusIcon className="w-4 h-4 mr-1" /> AGREGAR ITEM
+                <PlusIcon className="w-4 h-4 mr-1.5" /> Agregar Detalle ▾
               </button>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[10px] text-gray-400 uppercase tracking-[0.15em] border-b border-gray-50">
-                    <th className="py-4 px-8 font-bold">Unidad</th>
+                  <tr className="text-[10px] text-gray-400 uppercase tracking-[0.15em] border-b border-gray-50 bg-gray-50/30">
+                    <th className="py-4 px-6 font-bold">Tipo</th>
                     <th className="py-4 px-4 font-bold">Descripción</th>
-                    <th className="py-4 px-4 font-bold w-24">Cant.</th>
-                    <th className="py-4 px-4 font-bold w-32">Precio</th>
-                    <th className="py-4 px-4 font-bold w-32">Subtotal</th>
-                    <th className="py-4 px-8 w-10"></th>
+                    <th className="py-4 px-4 font-bold w-20 text-center">Cant.</th>
+                    <th className="py-4 px-4 font-bold w-28 text-center">Unidad</th>
+                    <th className="py-4 px-4 font-bold w-28 text-right">Precio</th>
+                    <th className="py-4 px-4 font-bold w-28 text-center">Tipo Venta</th>
+                    <th className="py-4 px-4 font-bold w-28 text-right">Sub Total</th>
+                    <th className="py-4 px-6 w-24 text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {items.map((item) => (
-                    <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-8">
-                        <select
-                          className="bg-transparent border-none text-sm text-gray-600 focus:ring-0 outline-none cursor-pointer"
-                          value={item.unidadMedida}
-                          onChange={(e) => updateItem(item.id, 'unidadMedida', e.target.value)}
-                        >
-                          {CAT_UNIDAD_MEDIDA.map((u) => (
-                            <option key={u.codigo} value={u.descripcion}>
-                              {u.descripcion}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="py-4 px-4">
-                        <input 
-                          type="text" 
-                          placeholder="Descripción del producto..." 
-                          className="w-full bg-transparent border-none text-sm text-gray-800 placeholder-gray-300 focus:ring-0 outline-none"
-                          value={item.descripcion}
-                          onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)}
-                        />
-                      </td>
-                      <td className="py-4 px-4">
-                        <input 
-                          type="number" 
-                          className="w-16 bg-gray-100/50 border-none rounded-lg px-2 py-1 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500/20"
-                          value={item.cantidad}
-                          onChange={(e) => updateItem(item.id, 'cantidad', parseFloat(e.target.value) || 0)}
-                        />
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-1">
-                          <span className="text-gray-400 text-xs">$</span>
-                          <input 
-                            type="number" 
-                            className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-700 focus:ring-0"
-                            value={item.precio}
-                            onChange={(e) => updateItem(item.id, 'precio', parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-sm font-bold text-gray-900">$ {item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-4 px-8 text-right">
-                        <button 
-                          onClick={() => eliminarItem(item.id)}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-sm text-gray-400">
+                        No hay ítems agregados. Haga clic en <strong className="text-blue-600">"Agregar Detalle"</strong> para añadir productos o servicios.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    items.map((item) => (
+                      <tr key={item.id} className="group hover:bg-gray-50/60 transition-colors">
+                        <td className="py-4 px-6">
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                            item.tipoItem === "2"
+                              ? "bg-purple-100 text-purple-700"
+                              : item.tipoItem === "3"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {item.tipoItem === "2" ? "Servicio" : item.tipoItem === "3" ? "Ambos" : "Bien"}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="text-sm font-bold text-gray-800">{item.descripcion}</p>
+                          {item.codigo && (
+                            <p className="text-[11px] text-gray-400 font-mono">Cód: {item.codigo}</p>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center text-sm font-semibold text-gray-700">
+                          {item.cantidad}
+                        </td>
+                        <td className="py-4 px-4 text-center text-xs text-gray-600">
+                          {item.unidadMedidaDesc || "Unidad"}
+                        </td>
+                        <td className="py-4 px-4 text-right text-sm font-medium text-gray-700">
+                          ${parseFloat(item.precio || 0).toFixed(2)}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                            {item.tipoVenta}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right text-sm font-bold text-gray-900">
+                          ${parseFloat(item.total || 0).toFixed(2)}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button 
+                              type="button"
+                              onClick={() => handleAbrirModalEditar(item)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="Editar ítem"
+                            >
+                              <PencilSquareIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleEliminarItem(item.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                              title="Eliminar ítem"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </section>
 
-          {/* SECCIÓN CONDICIONES Y RESPONSABLES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
-              <div className="flex items-center gap-2 mb-2">
-                <CreditCardIcon className="w-5 h-5 text-gray-400" />
-                <h3 className="font-bold text-gray-700">Condición y Pago</h3>
+          {/* SECCIÓN CONDICIÓN, FORMAS DE PAGO Y OBSERVACIONES (ALINEADO A MH) */}
+          <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCardIcon className="w-5 h-5 text-gray-400" />
+              <h3 className="font-bold text-gray-700">Condición de la Operación y Formas de Pago</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Condición de la Operación (CAT-016) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500">Condición de la operación (CAT-016)</label>
+                <select
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                  value={pago.condicion}
+                  onChange={(e) => setPago({ ...pago, condicion: e.target.value })}
+                >
+                  {CAT_CONDICION_PAGO.map((cp) => (
+                    <option key={cp.codigo} value={cp.descripcion}>
+                      {cp.descripcion}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Condición (CAT-016)</label>
+
+              {/* Agregar Pago (CAT-017) */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500">Forma de Pago (CAT-017)</label>
+                <div className="flex gap-2">
                   <select
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
-                    value={pago.condicion}
-                    onChange={(e) => setPago({ ...pago, condicion: e.target.value })}
-                  >
-                    {CAT_CONDICION_PAGO.map((cp) => (
-                      <option key={cp.codigo} value={cp.descripcion}>
-                        {cp.descripcion}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500">Forma de Pago (CAT-017)</label>
-                  <select
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
-                    value={pago.metodo}
-                    onChange={(e) => setPago({ ...pago, metodo: e.target.value })}
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs outline-none"
+                    value={pago.formaSeleccionada}
+                    onChange={(e) => setPago({ ...pago, formaSeleccionada: e.target.value })}
                   >
                     {CAT_FORMA_PAGOS.map((fp) => (
                       <option key={fp.codigo} value={fp.descripcion}>
@@ -491,114 +592,144 @@ export default function Venta() {
                       </option>
                     ))}
                   </select>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Monto Pago"
+                    className="w-28 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs outline-none"
+                    value={pago.montoNuevo}
+                    onChange={(e) => setPago({ ...pago, montoNuevo: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAgregarPago}
+                    className="px-3 py-2 bg-[#0088FF] hover:bg-blue-600 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1"
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" /> Pago
+                  </button>
                 </div>
               </div>
-              <div className="space-y-1.5 pt-2">
-                <label className="text-xs font-semibold text-gray-500">Observaciones</label>
-                <textarea 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
-                  rows="3"
-                  placeholder="Notas adicionales sobre este DTE..."
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                ></textarea>
-              </div>
-            </section>
+            </div>
 
-            <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
-              <div className="flex items-center gap-2 mb-2">
-                <InformationCircleIcon className="w-5 h-5 text-gray-400" />
-                <h3 className="font-bold text-gray-700">Responsables</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Emite el documento</p>
-                  <p className="text-sm font-bold text-gray-800">{responsables.emisorNombre}</p>
-                  <p className="text-xs text-gray-500">Doc: {responsables.emisorDoc}</p>
-                </div>
-                <div className="space-y-3">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Recibe el documento</p>
-                  <input 
-                    type="text" 
-                    placeholder="Nombre de quien recibe" 
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:border-blue-500"
-                    onChange={(e) => setResponsables({...responsables, receptorNombre: e.target.value})}
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Número de documento" 
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:border-blue-500"
-                    onChange={(e) => setResponsables({...responsables, receptorDoc: e.target.value})}
-                  />
-                </div>
-              </div>
-            </section>
-          </div>
+            {/* Tabla de Pagos Agregados */}
+            <div className="border border-gray-100 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="py-2.5 px-4">Forma de Pago</th>
+                    <th className="py-2.5 px-4 text-right">Monto</th>
+                    <th className="py-2.5 px-4 w-12"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {pago.listaPagos.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2.5 px-4 font-medium text-gray-800">{p.formaPago}</td>
+                      <td className="py-2.5 px-4 text-right font-bold text-gray-900">${p.monto.toFixed(2)}</td>
+                      <td className="py-2.5 px-4 text-right">
+                        {pago.listaPagos.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarPago(p.id)}
+                            className="text-red-400 hover:text-red-600"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Observaciones al documento */}
+            <div className="space-y-1.5 pt-2">
+              <label className="text-xs font-semibold text-gray-500">Observaciones al documento</label>
+              <textarea 
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
+                rows="2"
+                placeholder="Observaciones adicionales para el DTE..."
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+              ></textarea>
+            </div>
+          </section>
         </div>
 
-        {/* COLUMNA DERECHA (RESUMEN FINANCIERO) */}
+        {/* COLUMNA DERECHA (RESUMEN FINANCIERO MH) */}
         <div className="lg:col-span-4">
           <div className="sticky top-24 space-y-6">
-            <section className="bg-[#1A2B3C] text-white rounded-[2.5rem] shadow-2xl p-10 overflow-hidden relative">
-              {/* Decoración de fondo */}
+            <section className="bg-[#1A2B3C] text-white rounded-[2.5rem] shadow-2xl p-8 overflow-hidden relative">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
               
-              <h3 className="text-xl font-bold mb-8 flex items-center gap-2">
-                Resumen de Venta
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                Totales de la Operación
               </h3>
               
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm font-medium">Subtotal Operación</span>
-                  <span className="text-lg font-semibold">$ {subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <div className="space-y-4 text-sm">
+                <div className="flex justify-between items-center text-gray-300">
+                  <span>Total Gravado:</span>
+                  <span className="font-semibold text-white">${totalGravado.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center text-red-400">
-                  <span className="text-sm font-medium">Retención IVA (1%)</span>
-                  <span className="text-lg font-semibold">- $ {retencionIva.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+
+                {totalExento > 0 && (
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>Total Exento:</span>
+                    <span className="font-semibold text-white">${totalExento.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {totalNoSujeto > 0 && (
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>Total No Sujeto:</span>
+                    <span className="font-semibold text-white">${totalNoSujeto.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-gray-300">
+                  <span>Sub Total:</span>
+                  <span className="font-semibold text-white">${subTotal.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between items-center text-gray-300">
+                  <span>Retención IVA:</span>
+                  <span className="font-semibold text-white">$0.00</span>
                 </div>
                 
                 <div className="border-t border-white/10 pt-6 space-y-2">
-                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center mb-4">Total a Liquidar</p>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center mb-2">Total a Pagar</p>
                   <div className="flex justify-center items-baseline gap-1">
                     <span className="text-2xl font-light text-blue-400">$</span>
-                    <span className="text-5xl font-black text-white tracking-tighter">
-                      {totalPagar.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <span className="text-4xl font-black text-white tracking-tighter">
+                      {totalPagar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
-
-                <div className="bg-white/5 rounded-2xl p-4 mt-8">
-                  <div className="flex justify-between text-[10px] text-gray-500 uppercase font-bold">
-                    <span>Monto en letras</span>
-                  </div>
-                  <p className="text-[11px] text-blue-200 mt-1 italic">
-                    CERO DÓLARES CON 00/100 USD
-                  </p>
-                </div>
               </div>
 
-              <div className="mt-10">
+              <div className="mt-8">
                 <button 
                   onClick={handleEmitirVenta}
                   disabled={loadingEmitir}
                   className="w-full py-4 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
                 >
                   <CreditCardIcon className="w-5 h-5" />
-                  {loadingEmitir ? "EMITIENDO A HACIENDA..." : "CONFIRMAR Y EMITIR"}
+                  {loadingEmitir ? "EMITIENDO A HACIENDA..." : "GENERAR DOCUMENTO"}
                 </button>
-                <p className="text-[10px] text-gray-500 text-center mt-4 px-4 leading-relaxed">
-                  Al emitir, el documento será firmado digitalmente y enviado automáticamente al Ministerio de Hacienda.
+                <p className="text-[10px] text-gray-400 text-center mt-3 px-2 leading-relaxed">
+                  Documento tributario electrónico firmado digitalmente bajo normativa del Ministerio de Hacienda.
                 </p>
               </div>
             </section>
 
-            {/* QUICK HELP */}
+            {/* CARD INFORMATIVA MH */}
             <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6">
               <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2 mb-2">
-                <InformationCircleIcon className="w-4 h-4" /> Tip Pro
+                <InformationCircleIcon className="w-4 h-4" /> Normativa de Hacienda
               </h4>
-              <p className="text-xs text-blue-600/80 leading-relaxed">
-                Recuerda que para contribuyentes de IVA, el NRC es obligatorio para aplicar crédito fiscal.
+              <p className="text-xs text-blue-700/80 leading-relaxed">
+                Los ítems agregados cuentan con la estructura oficial del Ministerio de Hacienda (CAT-011 Tipo de ítem, CAT-014 Unidad de medida y CAT-015 Tributos).
               </p>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
+import Venta from "./pages/Venta";
 import Navbar from "./components/Navbar";
 import FacturaConsumidor from "./pages/FacturaConsumidor";
 import CreditoFiscal from "./pages/CreditoFiscal";
@@ -23,6 +24,8 @@ export default function App() {
       <Routes>
         {/* HOME / DASHBOARD */}
         <Route path="/" element={<Home />} />
+        <Route path="/venta" element={<Venta />} />
+        <Route path="/ventas" element={<Venta />} />
         <Route path="/factura-consumidor" element={<FacturaConsumidor />} />
         <Route path="/credito-fiscal" element={<CreditoFiscal />} />
         <Route path="/nota-credito" element={<NotaCredito />} />

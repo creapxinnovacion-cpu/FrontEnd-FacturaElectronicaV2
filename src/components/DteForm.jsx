@@ -26,6 +26,7 @@ import {
 import {
   PlusIcon,
   TrashIcon,
+  PencilSquareIcon,
   DocumentTextIcon,
   UserIcon,
   MapPinIcon,
@@ -38,11 +39,16 @@ import {
   TruckIcon,
   HeartIcon,
 } from "@heroicons/react/24/outline";
+import ModalItemDte from "./ModalItemDte";
 
 export default function DteForm({ defaultTipoDte }) {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [emisionResultado, setEmisionResultado] = useState(null);
   const [emisionError, setEmisionError] = useState(null);
+
+  // --- MODAL ÍTEM DTE OFICIAL MH ---
+  const [modalItemOpen, setModalItemOpen] = useState(false);
+  const [itemParaEditar, setItemParaEditar] = useState(null);
 
   // --- STATE ---
   const createEmptyItem = (id = Date.now()) => ({
@@ -147,7 +153,17 @@ export default function DteForm({ defaultTipoDte }) {
 
   // --- LOGIC ---
   const agregarItem = () => {
-    setItems([...items, createEmptyItem()]);
+    setItemParaEditar(null);
+    setModalItemOpen(true);
+  };
+
+  const handleGuardarItemModal = (itemGuardado) => {
+    if (itemParaEditar) {
+      setItems(items.map(it => it.id === itemGuardado.id ? { ...it, ...itemGuardado } : it));
+      setItemParaEditar(null);
+    } else {
+      setItems([...items, itemGuardado]);
+    }
   };
 
   const eliminarItem = (id) => {
@@ -262,6 +278,17 @@ export default function DteForm({ defaultTipoDte }) {
 
   return (
     <div className="min-h-screen bg-gray-800 pb-12">
+      {/* MODAL ÍTEM DTE OFICIAL MH */}
+      <ModalItemDte
+        isOpen={modalItemOpen}
+        onClose={() => {
+          setModalItemOpen(false);
+          setItemParaEditar(null);
+        }}
+        onSave={handleGuardarItemModal}
+        initialData={itemParaEditar}
+      />
+
       {/* HEADER SECTION */}
       <div className="bg-[#1A2B3C] text-white pt-8 pb-16 px-6 mb-[-4rem]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -511,38 +538,9 @@ export default function DteForm({ defaultTipoDte }) {
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-black ml-1">Tipo de Persona (CAT-029)</label>
-                    <select
-                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none cursor-pointer"
-                      value={receptor.tipoPersona}
-                      onChange={(e) => setReceptor({ ...receptor, tipoPersona: e.target.value })}
-                    >
-                      {CAT_TIPO_PERSONA.map((tp) => (
-                        <option key={tp.codigo} value={tp.codigo} className="text-gray-900 bg-white">
-                          {tp.descripcion}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-black ml-1">Domicilio Fiscal (CAT-018)</label>
-                    <select
-                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none cursor-pointer"
-                      value={receptor.domicilioFiscal}
-                      onChange={(e) => setReceptor({ ...receptor, domicilioFiscal: e.target.value })}
-                    >
-                      {DOMICILIO_FISCAL.map((df) => (
-                        <option key={df.codigo} value={df.codigo} className="text-gray-900 bg-white">
-                          {df.descripcion}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                {/* CAT-029 y CAT-018 ocultos temporalmente según requerimiento */}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-black ml-1">Tipo Documento (CAT-022)</label>
                     <select
@@ -572,24 +570,22 @@ export default function DteForm({ defaultTipoDte }) {
                         {receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
                           ? "DUI"
                           : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
-                          ? "NIT"
-                          : "Número Doc."}
+                            ? "NIT"
+                            : "Número Doc."}
                       </label>
                       {(receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI") && receptor.numDoc && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          receptor.numDoc.length === 9
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${receptor.numDoc.length === 9
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                          }`}>
                           {receptor.numDoc.length === 9 ? "✓ DUI 9 dígitos" : `${receptor.numDoc.length}/9 dígitos`}
                         </span>
                       )}
                       {(receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT") && receptor.numDoc && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          receptor.numDoc.length === 14 || receptor.numDoc.length === 9
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${receptor.numDoc.length === 14 || receptor.numDoc.length === 9
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                          }`}>
                           {receptor.numDoc.length === 14 ? "✓ NIT 14 dígitos" : receptor.numDoc.length === 9 ? "✓ Homologado 9 dígitos" : `${receptor.numDoc.length}/14 dígitos`}
                         </span>
                       )}
@@ -610,15 +606,15 @@ export default function DteForm({ defaultTipoDte }) {
                         receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
                           ? 9
                           : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
-                          ? 14
-                          : 30
+                            ? 14
+                            : 30
                       }
                       placeholder={
                         receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
-                          ? "Solo números (9 dígitos)"
+                          ? "Solo números"
                           : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
-                          ? "Solo números (14 dígitos)"
-                          : "Número de documento"
+                            ? "Solo números "
+                            : "Número de documento"
                       }
                       className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                       value={receptor.numDoc}
@@ -644,14 +640,11 @@ export default function DteForm({ defaultTipoDte }) {
                         setReceptor({ ...receptor, numDoc: val });
                       }}
                     />
-                    <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
-                      <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
-                      {receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI"
-                        ? "DUI: Solo números (0-9). Abecedario y símbolos SQL bloqueados."
-                        : receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT"
-                        ? "NIT: Solo números (0-9). Protegido contra inyección SQL."
-                        : "Documento protegido contra inyección SQL."}
-                    </p>
+                    {(receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI") && (
+                      <p className="text-[10px] text-gray-400 pl-1">
+                        DUI: Solo números (0-9).
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -670,11 +663,10 @@ export default function DteForm({ defaultTipoDte }) {
                       <div className="flex justify-between items-center">
                         <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
                         {receptor.nrc && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            receptor.nrc.length >= 1 && receptor.nrc.length <= 8
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${receptor.nrc.length >= 1 && receptor.nrc.length <= 8
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                            }`}>
                             {`✓ NRC: ${receptor.nrc.length} dígitos`}
                           </span>
                         )}
@@ -696,7 +688,7 @@ export default function DteForm({ defaultTipoDte }) {
                       />
                       <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
                         <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
-                        NRC: Solo dígitos (0-9). Abecedario, caracteres especiales y símbolos SQL bloqueados.
+                        NRC: Solo dígitos (0-9).
                       </p>
                     </div>
                     <div className="space-y-1.5">
@@ -815,9 +807,9 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
               <button
                 onClick={agregarItem}
-                className="inline-flex items-center px-4 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-[#0088FF] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md transition-all transform active:scale-95"
               >
-                <PlusIcon className="w-4 h-4 mr-1" /> AGREGAR ITEM
+                <PlusIcon className="w-4 h-4 mr-1.5" /> AGREGAR DETALLE ▾
               </button>
             </div>
             {/*tabla para mostrar los items*/}
@@ -989,12 +981,24 @@ export default function DteForm({ defaultTipoDte }) {
                         )
                       )}
                       <td className="py-4 px-8 text-right">
-                        <button
-                          onClick={() => eliminarItem(item.id)}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setItemParaEditar(item); setModalItemOpen(true); }}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Editar ítem con modal oficial"
+                          >
+                            <PencilSquareIcon className="w-5 h-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => eliminarItem(item.id)}
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="Eliminar ítem"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1091,63 +1095,9 @@ export default function DteForm({ defaultTipoDte }) {
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <TruckIcon className="w-5 h-5 text-black" />
-                <h3 className="font-bold text-gray-700">{isNota ? 'Información obligatoria, recepción entrega documento' : 'Datos adicionales entrega y transporte'}</h3>
+                <h3 className="font-bold text-gray-700">{isNota ? 'Información obligatoria, recepción entrega documento' : 'Responsables de recepción y entrega del documento'}</h3>
               </div>
               <div className="space-y-6">
-                {/* Parámetros de Traslado y Transporte (CAT-027, CAT-028, CAT-026) */}
-                <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-4">
-                  <p className="text-[10px] font-bold text-blue-600 uppercase">
-                    Parámetros de Bienes y Transporte (MH)
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">Título de Remisión (CAT-027)</label>
-                      <select
-                        className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
-                        value={datosEntrega.tituloBienes}
-                        onChange={(e) => setDatosEntrega({ ...datosEntrega, tituloBienes: e.target.value })}
-                      >
-                        {CAT_TITULO_REMITEN_BIENES.map((tb) => (
-                          <option key={tb.codigo} value={tb.codigo} className="text-gray-900 bg-white">
-                            {tb.codigo} - {tb.descripcion}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-black ml-1 uppercase">Modo de Transporte (CAT-028)</label>
-                      <select
-                        className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
-                        value={datosEntrega.modoTransporte}
-                        onChange={(e) => setDatosEntrega({ ...datosEntrega, modoTransporte: e.target.value })}
-                      >
-                        {CAT_TRASPORTE.map((tr) => (
-                          <option key={tr.codigo} value={tr.codigo} className="text-gray-900 bg-white">
-                            {tr.codigo} - {tr.descripcion}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {(isExportacion || datosEntrega.recintoFiscal !== "") && (
-                      <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-[10px] font-semibold text-black ml-1 uppercase">Recinto Fiscal Aduanero (CAT-026)</label>
-                        <select
-                          className="w-full bg-[#777778] text-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none cursor-pointer"
-                          value={datosEntrega.recintoFiscal}
-                          onChange={(e) => setDatosEntrega({ ...datosEntrega, recintoFiscal: e.target.value })}
-                        >
-                          <option value="" className="text-gray-900 bg-white">-- No aplica / Ninguno --</option>
-                          {CAT_RECINTO_FISCAL.map((rf) => (
-                            <option key={rf.codigo} value={rf.codigo} className="text-gray-900 bg-white">
-                              {rf.codigo} - {rf.descripcion}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold text-blue-600 uppercase">
                     {isNota ? 'Responsable por parte del Emisor' : 'Responsable de emitir el documento'}
