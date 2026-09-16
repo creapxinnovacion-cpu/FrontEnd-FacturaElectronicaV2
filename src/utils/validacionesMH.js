@@ -96,3 +96,18 @@ export function validarLongitud(valor, min, max) {
   return valor.length >= min && valor.length <= max;
 }
 
+/**
+ * Valida teléfono salvadoreño:
+ * - 8 dígitos numéricos con o sin guion (ej: 7000-0000 o 70000000)
+ * - Típicamente inician con 2 (fijo) o 6, 7 (móvil), o cualquier número válido de 8 dígitos en El Salvador
+ * - Opcionalmente con código de país (+503 7000-0000 o +50370000000)
+ */
+export function validarTelefono(telefono) {
+  if (!telefono) return false;
+  const limpio = String(telefono).trim();
+  const regexSV = /^(\+?503\s?)?[267]\d{3}-?\d{4}$/;
+  const regex8Digitos = /^\d{4}-?\d{4}$/;
+  const regexSolo8 = /^\d{8}$/;
+  return regexSV.test(limpio) || regex8Digitos.test(limpio) || regexSolo8.test(limpio.replace(/\D/g, ""));
+}
+

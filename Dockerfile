@@ -18,6 +18,9 @@ RUN npm run build
 # Etapa 2: Servido con Nginx
 FROM nginx:stable-alpine as production-stage
 
+# Copiar configuración de Nginx para SPA (React Router)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # Copiar archivos compilados desde la etapa anterior
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 

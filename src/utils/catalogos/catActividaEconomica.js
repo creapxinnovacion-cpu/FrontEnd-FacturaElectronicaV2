@@ -1,6 +1,5 @@
 export const CAT_ACTIVIDAD_ECONOMICA = [
     { codigo: "0000", descripcion: "Agricultura, ganaderia, silvicultura y pesca" },
-    { codigo: "0000", descripcion: "Produccion  agricola, pecuaria, caza y actividades de servicios conexas " },
     { codigo: "01111", descripcion: "Cultivos de cereales excepto arroz y para forrajes" },
     { codigo: "01112", descripcion: "Cultivo de legumbres" },
     { codigo: "01113", descripcion: "Cultivo de semillas oleaginosas" },
@@ -65,7 +64,6 @@ export const CAT_ACTIVIDAD_ECONOMICA = [
     { codigo: "03120", descripcion: "Pesca de agua dulce" },
     { codigo: "03210", descripcion: "Acuicultura marítima" },
     { codigo: "03220", descripcion: "Acuicultura de agua dulce" },
-    { codigo: "03220", descripcion: "Acuicultura de agua dulce " },
     { codigo: "03300", descripcion: "Servicios de apoyo a la pesca y acuicultura" },
     //Explotacion de Minera y cantera, Extraccion carbon de piedra y lignito
     { codigo: "05100", descripcion: "Extacción de hulla" },

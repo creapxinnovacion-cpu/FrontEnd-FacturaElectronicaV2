@@ -16,4 +16,6 @@ export const batchService = {
     link.remove();
     window.URL.revokeObjectURL(url);
   },
+  consultarMh: (id) => http.get(`/dtes/${id}/consultar-mh`),
+  getDiagnostico: () => http.get('/test/diagnostico'),
 };

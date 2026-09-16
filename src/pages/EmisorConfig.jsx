@@ -12,6 +12,7 @@ import {
   validarNRC,
   validarEmail,
   validarLongitud,
+  validarTelefono,
   sanitizarSoloNumeros,
 } from "../utils/validacionesMH";
 
@@ -46,25 +47,25 @@ export default function EmisorConfig() {
   const loadEmisor = async () => {
     try {
       const response = await emisorService.getAll();
-      if (response.data.length > 0) {
+      if (response.data && response.data.length > 0) {
         const data = response.data[0];
-        setForm({
-          ...form,
+        setForm((prev) => ({
+          ...prev,
           id: data.id,
-          nombre: data.nombre,
+          nombre: data.nombre || "",
           nombre_comercial: data.nombre_comercial || "",
-          nit: data.nit,
-          nrc: data.nrc,
-          cod_actividad: data.cod_actividad,
-          desc_actividad: data.desc_actividad,
-          direccion: data.direccion,
+          nit: data.nit || "",
+          nrc: data.nrc || "",
+          cod_actividad: data.cod_actividad || "",
+          desc_actividad: data.desc_actividad || "",
+          direccion: data.direccion || "",
           departamento: data.departamento || "06",
           municipio: data.municipio || "23",
           distrito: data.distrito || "01",
           complemento: data.complemento || "",
-          correo: data.correo,
-          telefono: data.telefono,
-        });
+          correo: data.correo || "",
+          telefono: data.telefono || "",
+        }));
       }
     } catch (error) {
       console.error("Error al cargar emisor", error);
@@ -92,6 +93,13 @@ export default function EmisorConfig() {
       case "direccion":
         if (!validarLongitud(value, 5, 300)) error = "Dirección muy corta";
         break;
+      case "telefono":
+        if (!value || !String(value).trim()) {
+          error = "El teléfono es obligatorio";
+        } else if (!validarTelefono(value)) {
+          error = "Teléfono inválido. Ingrese 8 dígitos (ej. 7000-0000)";
+        }
+        break;
       default:
         break;
     }
@@ -104,7 +112,15 @@ export default function EmisorConfig() {
     if (name === "nrc") {
       val = sanitizarSoloNumeros(val, 8);
     }
-    
+    if (name === "telefono" && typeof val === "string") {
+      const soloNum = sanitizarSoloNumeros(val, 8);
+      if (soloNum.length > 4) {
+        val = `${soloNum.slice(0, 4)}-${soloNum.slice(4)}`;
+      } else {
+        val = soloNum;
+      }
+    }
+
     setForm((prev) => {
       const updated = { ...prev, [name]: val };
       if (name === "cod_actividad") {
@@ -167,7 +183,7 @@ export default function EmisorConfig() {
     }
   };
 
-  const camposObligatorios = ["nombre", "nit", "nrc", "cod_actividad", "direccion"];
+  const camposObligatorios = ["nombre", "nit", "nrc", "cod_actividad", "direccion", "telefono"];
   const sistemaListo = camposObligatorios.every((campo) => form[campo] && form[campo] !== "") &&
     Object.values(errores).every((e) => !e);
 
@@ -208,7 +224,14 @@ export default function EmisorConfig() {
             error={errores.cod_actividad}
           />
           <Input name="correo" value={form.correo} placeholder="Correo electrónico" onChange={handleChange} error={errores.correo} />
-          <Input name="telefono" value={form.telefono} placeholder="Teléfono" onChange={handleChange} />
+          <Input
+            label="Teléfono"
+            name="telefono"
+            value={form.telefono}
+            placeholder="Teléfono (ej. 7000-0000) *"
+            onChange={handleChange}
+            error={errores.telefono}
+          />
         </div>
 
         {/* Ubicación Territorial V2.0 (Departamento, Municipio, Distrito) */}
@@ -224,7 +247,7 @@ export default function EmisorConfig() {
         </div>
         <textarea
           name="direccion"
-          value={form.direccion}
+          value={form.direccion || ""}
           placeholder="Dirección fiscal *"
           rows={3}
           onChange={handleChange}

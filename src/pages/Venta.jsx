@@ -6,14 +6,14 @@ import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconom
 import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
 import { CAT_CONDICION_PAGO } from "../utils/catalogos/catCondicionPago";
 import { CAT_FORMA_PAGOS } from "../utils/catalogos/catFormaPagos";
-import { 
-  PlusIcon, 
-  TrashIcon, 
+import {
+  PlusIcon,
+  TrashIcon,
   PencilSquareIcon,
-  DocumentTextIcon, 
-  UserIcon, 
-  MapPinIcon, 
-  CreditCardIcon, 
+  DocumentTextIcon,
+  UserIcon,
+  MapPinIcon,
+  CreditCardIcon,
   InformationCircleIcon,
   ShoppingCartIcon,
   CheckCircleIcon,
@@ -256,7 +256,7 @@ export default function Venta() {
             </p>
           </div>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={handleEmitirVenta}
               disabled={loadingEmitir}
               className="px-8 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02]"
@@ -303,7 +303,7 @@ export default function Venta() {
       )}
 
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* COLUMNA IZQUIERDA (CONTENIDO PRINCIPAL) */}
         <div className="lg:col-span-8 space-y-8">
 
@@ -318,10 +318,10 @@ export default function Venta() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Tipo de Documento (CAT-022)</label>
-                  <select 
+                  <select
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.tipoDoc}
-                    onChange={(e) => setReceptor({...receptor, tipoDoc: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, tipoDoc: e.target.value })}
                   >
                     <option value="">-- Seleccione Tipo de Documento --</option>
                     {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
@@ -334,45 +334,45 @@ export default function Venta() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Número de Documento / NIT</label>
-                  <input 
-                    type="text" 
-                    placeholder="Digite el número de documento" 
+                  <input
+                    type="text"
+                    placeholder="Digite el número de documento"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.numDoc}
-                    onChange={(e) => setReceptor({...receptor, numDoc: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, numDoc: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Nombre del Cliente / Razón Social *</label>
-                  <input 
-                    type="text" 
-                    placeholder="Nombre completo del cliente" 
+                  <input
+                    type="text"
+                    placeholder="Nombre completo del cliente"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={receptor.nombre}
-                    onChange={(e) => setReceptor({...receptor, nombre: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, nombre: e.target.value })}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
-                    <input 
-                      type="text" 
-                      placeholder="Número de registro" 
+                    <input
+                      type="text"
+                      placeholder="Número de registro"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.nrc}
-                      onChange={(e) => setReceptor({...receptor, nrc: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, nrc: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Nombre Comercial</label>
-                    <input 
-                      type="text" 
-                      placeholder="Nombre comercial" 
+                    <input
+                      type="text"
+                      placeholder="Nombre comercial"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.nombreComercial}
-                      onChange={(e) => setReceptor({...receptor, nombreComercial: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, nombreComercial: e.target.value })}
                     />
                   </div>
                 </div>
@@ -416,34 +416,34 @@ export default function Venta() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
-                  <textarea 
-                    placeholder="Digite el complemento de la dirección" 
+                  <textarea
+                    placeholder="Digite el complemento de la dirección"
                     rows="2"
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
                     value={receptor.complemento}
-                    onChange={(e) => setReceptor({...receptor, complemento: e.target.value})}
+                    onChange={(e) => setReceptor({ ...receptor, complemento: e.target.value })}
                   ></textarea>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Correo Electrónico</label>
-                    <input 
-                      type="email" 
-                      placeholder="ejemplo@correo.com" 
+                    <input
+                      type="email"
+                      placeholder="ejemplo@correo.com"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.correo}
-                      onChange={(e) => setReceptor({...receptor, correo: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, correo: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 ml-1">Teléfono</label>
-                    <input 
-                      type="text" 
-                      placeholder="7000-0000" 
+                    <input
+                      type="text"
+                      placeholder="7000-0000"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.telefono}
-                      onChange={(e) => setReceptor({...receptor, telefono: e.target.value})}
+                      onChange={(e) => setReceptor({ ...receptor, telefono: e.target.value })}
                     />
                   </div>
                 </div>
@@ -458,7 +458,7 @@ export default function Venta() {
                 <ShoppingCartIcon className="w-5 h-5 text-gray-400" />
                 <h3 className="font-bold text-gray-700">Datos de la Factura (Detalle de DTE)</h3>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={handleAbrirModalNuevo}
                 className="inline-flex items-center px-4 py-2 bg-[#0088FF] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md transition-all transform active:scale-95"
@@ -466,7 +466,7 @@ export default function Venta() {
                 <PlusIcon className="w-4 h-4 mr-1.5" /> Agregar Detalle ▾
               </button>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -492,13 +492,12 @@ export default function Venta() {
                     items.map((item) => (
                       <tr key={item.id} className="group hover:bg-gray-50/60 transition-colors">
                         <td className="py-4 px-6">
-                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                            item.tipoItem === "2"
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${item.tipoItem === "2"
                               ? "bg-purple-100 text-purple-700"
                               : item.tipoItem === "3"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}>
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}>
                             {item.tipoItem === "2" ? "Servicio" : item.tipoItem === "3" ? "Ambos" : "Bien"}
                           </span>
                         </td>
@@ -527,7 +526,7 @@ export default function Venta() {
                         </td>
                         <td className="py-4 px-6 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <button 
+                            <button
                               type="button"
                               onClick={() => handleAbrirModalEditar(item)}
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -535,7 +534,7 @@ export default function Venta() {
                             >
                               <PencilSquareIcon className="w-4 h-4" />
                             </button>
-                            <button 
+                            <button
                               type="button"
                               onClick={() => handleEliminarItem(item.id)}
                               className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
@@ -646,7 +645,7 @@ export default function Venta() {
             {/* Observaciones al documento */}
             <div className="space-y-1.5 pt-2">
               <label className="text-xs font-semibold text-gray-500">Observaciones al documento</label>
-              <textarea 
+              <textarea
                 className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
                 rows="2"
                 placeholder="Observaciones adicionales para el DTE..."
@@ -662,11 +661,11 @@ export default function Venta() {
           <div className="sticky top-24 space-y-6">
             <section className="bg-[#1A2B3C] text-white rounded-[2.5rem] shadow-2xl p-8 overflow-hidden relative">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-              
+
               <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                 Totales de la Operación
               </h3>
-              
+
               <div className="space-y-4 text-sm">
                 <div className="flex justify-between items-center text-gray-300">
                   <span>Total Gravado:</span>
@@ -696,7 +695,7 @@ export default function Venta() {
                   <span>Retención IVA:</span>
                   <span className="font-semibold text-white">$0.00</span>
                 </div>
-                
+
                 <div className="border-t border-white/10 pt-6 space-y-2">
                   <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center mb-2">Total a Pagar</p>
                   <div className="flex justify-center items-baseline gap-1">
@@ -709,7 +708,7 @@ export default function Venta() {
               </div>
 
               <div className="mt-8">
-                <button 
+                <button
                   onClick={handleEmitirVenta}
                   disabled={loadingEmitir}
                   className="w-full py-4 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2"

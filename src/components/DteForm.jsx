@@ -103,6 +103,7 @@ export default function DteForm({ defaultTipoDte }) {
   const [pago, setPago] = useState({
     condicion: "Contado",
     metodo: "Billetes y monedas",
+    monto: 0,
     pagos: []
   });
 
@@ -209,6 +210,7 @@ export default function DteForm({ defaultTipoDte }) {
   const totalOperaciones = items.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
   const totalDescuento = items.reduce((acc, item) => acc + (item.descuento || 0), 0);
 
+  // Subtotal general de los detalles de la operación
   const subTotalGeral = isSujetoExcluido ? (totalOperaciones - totalDescuento) : totalGravado;
 
   // Efecto para calcular retención de renta automáticamente si es Sujeto Excluido
@@ -217,6 +219,14 @@ export default function DteForm({ defaultTipoDte }) {
       setRetencionRenta((subTotalGeral * retencionRentaPercent) / 100);
     }
   }, [subTotalGeral, retencionRentaPercent, isSujetoExcluido]);
+
+  // Efecto para sincronizar automáticamente el monto en "Condición de la Operación" con el subtotal de "Detalle de la Operación"
+  useEffect(() => {
+    setPago((prev) => ({
+      ...prev,
+      monto: subTotalGeral > 0 ? parseFloat(subTotalGeral.toFixed(2)) : 0,
+    }));
+  }, [subTotalGeral]);
 
   const totalPagar = isSujetoExcluido
     ? (subTotalGeral - retencionRenta)
@@ -278,7 +288,9 @@ export default function DteForm({ defaultTipoDte }) {
 
   return (
     <div className="min-h-screen bg-gray-800 pb-12">
-      {/* MODAL ÍTEM DTE OFICIAL MH */}
+      {/* ========================================================================= */}
+      {/* SECCIÓN: MODAL ÍTEM DTE OFICIAL (MINISTERIO DE HACIENDA)                   */}
+      {/* ========================================================================= */}
       <ModalItemDte
         isOpen={modalItemOpen}
         onClose={() => {
@@ -289,7 +301,9 @@ export default function DteForm({ defaultTipoDte }) {
         initialData={itemParaEditar}
       />
 
-      {/* HEADER SECTION */}
+      {/* ========================================================================= */}
+      {/* SECCIÓN: ENCABEZADO Y ACCIONES PRINCIPALES (EMISIÓN / BORRADOR)           */}
+      {/* ========================================================================= */}
       <div className="bg-[#1A2B3C] text-white pt-8 pb-16 px-6 mb-[-4rem]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -314,7 +328,9 @@ export default function DteForm({ defaultTipoDte }) {
         </div>
       </div>
 
-      {/* FEEDBACK BANNER DE EMISIÓN */}
+      {/* ========================================================================= */}
+      {/* SECCIÓN: NOTIFICACIONES DE TRANSMISIÓN MH (ALERTAS DE ÉXITO / ERROR)      */}
+      {/* ========================================================================= */}
       {emisionResultado && (
         <div className="max-w-7xl mx-auto px-6 mt-6 mb-2">
           <div className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
@@ -376,7 +392,9 @@ export default function DteForm({ defaultTipoDte }) {
         {/* COLUMNA IZQUIERDA (CONTENIDO PRINCIPAL) */}
         <div className="lg:col-span-8 space-y-8">
 
-          {/* SECCIÓN EMISOR */}
+          {/* ========================================================================= */}
+          {/* SECCIÓN 1: DATOS DEL EMISOR                                              */}
+          {/* ========================================================================= */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-blue-50/30 px-8 py-3 border-b border-gray-100 flex justify-between items-center">
               <p className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Datos del Emisor</p>
@@ -427,7 +445,10 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
             </div>
           </section>
-          {/*section de la nota de credito o debito*/}
+
+          {/* ========================================================================= */}
+          {/* SECCIÓN 2: DOCUMENTO RELACIONADO (NOTAS DE CRÉDITO Y DÉBITO)             */}
+          {/* ========================================================================= */}
           {isNota && (
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="bg-purple-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -504,7 +525,9 @@ export default function DteForm({ defaultTipoDte }) {
             </section>
           )}
 
-          {/* SECCIÓN DONACIÓN SI APLICA */}
+          {/* ========================================================================= */}
+          {/* SECCIÓN 3: INFORMACIÓN DE LA DONACIÓN (SI APLICA)                         */}
+          {/* ========================================================================= */}
           {isDonacion && (
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="bg-rose-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -530,7 +553,9 @@ export default function DteForm({ defaultTipoDte }) {
             </section>
           )}
 
-          {/* SECCIÓN RECEPTOR */}
+          {/* ========================================================================= */}
+          {/* SECCIÓN 4: INFORMACIÓN DEL RECEPTOR / CLIENTE                             */}
+          {/* ========================================================================= */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex items-center gap-2">
               <UserIcon className="w-5 h-5 text-black" />
@@ -798,7 +823,9 @@ export default function DteForm({ defaultTipoDte }) {
             </div>
           </section>
 
-          {/* SECCIÓN PRODUCTOS */}
+          {/* ========================================================================= */}
+          {/* SECCIÓN 5: DETALLE DE LA OPERACIÓN (PRODUCTOS, SERVICIOS Y SUBTOTALES)    */}
+          {/* ========================================================================= */}
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -1006,7 +1033,9 @@ export default function DteForm({ defaultTipoDte }) {
               </table>
             </div>
           </section>
-          {/*Condiciones de operacion y forma de pago */}
+          {/* ========================================================================= */}
+          {/* SECCIÓN 6: CONDICIÓN DE LA OPERACIÓN Y FORMAS DE PAGO                     */}
+          {/* ========================================================================= */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
@@ -1043,15 +1072,17 @@ export default function DteForm({ defaultTipoDte }) {
                   </select>
                 </div>
               </div>
+              {/* ---> INPUT MONTO: CARGADO CON EL SUBTOTAL DE DETALLES DE LA OPERACIÓN <--- */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-black">Monto</label>
                 <input
                   type="number"
+                  step="any"
                   placeholder="Monto Pago"
                   min={0}
                   max={totalPagar}
-                  value={pago.monto}
-                  onChange={(e) => setPago({ ...pago, monto: parseFloat(e.target.value) || 0 })}
+                  value={pago.monto !== undefined && pago.monto !== null && pago.monto !== "" ? pago.monto : subTotalGeral}
+                  onChange={(e) => setPago({ ...pago, monto: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })}
                   className="w-full bg-gray-50 text-black border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                 />
               </div>
@@ -1070,7 +1101,7 @@ export default function DteForm({ defaultTipoDte }) {
                   <tbody>
                     <tr className="border-b border-gray-50/50">
                       <td className="py-2 pr-2 text-black">{pago.metodo}</td>
-                      <td className="py-2 px-2 text-right font-medium text-black">$ {totalPagar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-2 px-2 text-right font-medium text-black">$ {(pago.monto !== undefined && pago.monto !== null && pago.monto !== "" ? Number(pago.monto) : subTotalGeral).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       <td className="py-2 px-2 text-black italic">N/A</td>
                       <td className="py-2 px-2 text-black italic">N/A</td>
                       <td className="py-2 pl-2 text-black italic">N/A</td>
@@ -1082,7 +1113,7 @@ export default function DteForm({ defaultTipoDte }) {
               <div className="space-y-1.5 pt-2">
                 <label className="text-xs font-semibold text-black">Observaciones</label>
                 <textarea
-                  className="w-full bg-black border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
+                  className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
                   rows={isNota ? 6 : 3}
                   placeholder="Observaciones al documento"
                   value={observaciones}
@@ -1091,7 +1122,9 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
             </section>
 
-            {/*seccion de datos adicionales de entrega */}
+            {/* ========================================================================= */}
+            {/* SECCIÓN 7: RESPONSABLES DE RECEPCIÓN Y ENTREGA DEL DOCUMENTO              */}
+            {/* ========================================================================= */}
             <section className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <TruckIcon className="w-5 h-5 text-black" />
@@ -1139,7 +1172,7 @@ export default function DteForm({ defaultTipoDte }) {
                             else if (responsables.emisorDocTipo === "36") val = sanitizarSoloNumeros(val, 14);
                             else val = val.replace(/['";\-\-/*=]/g, "");
                             setResponsables({ ...responsables, emisorDoc: val });
-                          }}
+                          }} readOnly
                         />
                       </div>
                     </div>
@@ -1150,7 +1183,7 @@ export default function DteForm({ defaultTipoDte }) {
                         placeholder="Responsable de emitir"
                         className="w-full text-black bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500"
                         value={responsables.emisorNombre}
-                        onChange={(e) => setResponsables({ ...responsables, emisorNombre: e.target.value.replace(/['";\-\-/*=]/g, "") })}
+                        onChange={(e) => setResponsables({ ...responsables, emisorNombre: e.target.value.replace(/['";\-\-/*=]/g, "") })} readOnly
                       />
                     </div>
                   </div>
@@ -1218,6 +1251,9 @@ export default function DteForm({ defaultTipoDte }) {
           </div>
         </div>
 
+        {/* ========================================================================= */}
+        {/* SECCIÓN 8: RESUMEN FINANCIERO DE LA OPERACIÓN (TOTALES Y RETENCIONES)     */}
+        {/* ========================================================================= */}
         {/* COLUMNA DERECHA (RESUMEN FINANCIERO) */}
         <div className="lg:col-span-4">
           <div className="sticky top-24 space-y-6">
