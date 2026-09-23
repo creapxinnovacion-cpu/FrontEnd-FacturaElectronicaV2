@@ -297,5 +297,7 @@ export const CAT_ACTIVIDAD_ECONOMICA = [
     { codigo: "31001", descripcion: "Fabricación de colchones y somier" },
     { codigo: "31002", descripcion: "Fabricación de muebles y otros productos de madera a medida" },
     { codigo: "31008", descripcion: "Servicios de maquilado de muebles" },
-    { codigo: "31009", descripcion: "Fabricación de muebles N.C.P" }
+    { codigo: "31009", descripcion: "Fabricación de muebles N.C.P" },
+    //REPARACIÓN DE COMPUTADORAS Y DE EFECTOS PERSONALES Y ENSERES DOMÉSTICOS me salte para configura el sitema de creapx
+    { codigo: "95110", descripcion: "Reparación de computadoras y equipo periférico" }
 ]
