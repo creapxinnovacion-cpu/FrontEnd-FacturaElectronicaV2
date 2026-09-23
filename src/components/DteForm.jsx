@@ -792,7 +792,7 @@ export default function DteForm({ defaultTipoDte }) {
                   <textarea
                     placeholder="Digite el complemento de la dirección"
                     rows="2"
-                    className="w-full white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                    className="w-full  bg-[#777778] text-white  border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
                     value={receptor.complemento}
                     onChange={(e) => setReceptor({ ...receptor, complemento: e.target.value })}
                   ></textarea>
@@ -803,7 +803,7 @@ export default function DteForm({ defaultTipoDte }) {
                     <input
                       type="email"
                       placeholder="ejemplo@correo.com"
-                      className="w-full white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      className="w-full bg-[#777778] text-white white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.correo}
                       onChange={(e) => setReceptor({ ...receptor, correo: e.target.value })}
                     />
@@ -813,7 +813,7 @@ export default function DteForm({ defaultTipoDte }) {
                     <input
                       type="text"
                       placeholder="7000-0000"
-                      className="w-full white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      className="w-full bg-[#777778] text-white white-space-pre-wrap border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={receptor.telefono}
                       onChange={(e) => setReceptor({ ...receptor, telefono: e.target.value })}
                     />

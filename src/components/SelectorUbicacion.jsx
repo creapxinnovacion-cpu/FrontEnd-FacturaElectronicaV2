@@ -67,7 +67,7 @@ export default function SelectorUbicacion({
           value={departamento}
           onChange={handleDeptoChange}
           disabled={disabled}
-          className="w-full bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+          className="w-full bg-[#777778] text-white  border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
         >
           <option value="">-- Seleccione Departamento --</option>
           {CAT_DEPTO.map((d) => (
@@ -87,7 +87,7 @@ export default function SelectorUbicacion({
           value={municipio}
           onChange={handleMuniChange}
           disabled={disabled || !departamento}
-          className="w-full  bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+          className="w-full bg-[#777778] text-white  bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
         >
           <option value="">-- Seleccione Municipio --</option>
           {municipiosDisponibles.map((m) => (
@@ -107,7 +107,7 @@ export default function SelectorUbicacion({
           value={distrito}
           onChange={handleDistritoChange}
           disabled={disabled || !municipio}
-          className="w-full  bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+          className="w-full  bg-[#777778] text-white  border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
         >
           <option value="">-- Seleccione Distrito --</option>
           {distritosDisponibles.map((dis) => (
