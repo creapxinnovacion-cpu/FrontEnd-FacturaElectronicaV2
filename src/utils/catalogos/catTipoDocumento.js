@@ -11,8 +11,6 @@ export const CAT_DOCUMENTO = [
     { codigo: "11", descripcion: "Facturas de exportación" },
     { codigo: "14", descripcion: "Factura Sujeto Excluido" },
     { codigo: "15", descripcion: "Comprobante de donación" },
-    { codigo: "16", descripcion: "Documento en línea para venta" },
-    { codigo: "17", descripcion: "Ticket para consumidores finales" },
-    { codigo: "20", descripcion: "Documento Electrónico" },
-    { codigo: "21", descripcion: "Boleto de donación" }
-];
+    { codigo: "17", descripcion: "Evento de Operaciones Especiales" },
+    { codigo: "18", descripcion: "Evento de Retorno" }
+];

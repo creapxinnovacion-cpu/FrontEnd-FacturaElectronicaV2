@@ -58,7 +58,7 @@ export function validarDUI(dui) {
 export function validarNRC(nrc) {
   if (!nrc) return false;
   const limpio = String(nrc).trim();
-  const regex = /^\d{1,8}$/;
+  const regex = /^\d{1,10}$/; // Extendido a 10 dígitos
   return regex.test(limpio);
 }
 
@@ -74,7 +74,8 @@ export function validarNIT(nit) {
   const regexConGuiones = /^\d{4}-\d{6}-\d{3}-\d{1}$/;
   const regexContinuo14 = /^\d{14}$/;
   const regexContinuo9 = /^\d{9}$/;
-  return regexConGuiones.test(limpio) || regexContinuo14.test(limpio) || regexContinuo9.test(limpio);
+  const regexContinuo10 = /^\d{10}$/; // Caso especial
+  return regexConGuiones.test(limpio) || regexContinuo14.test(limpio) || regexContinuo9.test(limpio) || regexContinuo10.test(limpio);
 }
 
 /**

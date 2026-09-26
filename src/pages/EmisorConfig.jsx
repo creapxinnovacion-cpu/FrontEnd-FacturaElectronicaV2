@@ -79,10 +79,10 @@ export default function EmisorConfig() {
         if (!validarLongitud(value, 3, 250)) error = "Debe tener entre 3 y 250 caracteres";
         break;
       case "nit":
-        if (!validarNIT(value)) error = "Formato NIT inválido (0000-000000-000-0)";
+        if (!validarNIT(value)) error = "Formato NIT inválido (9, 10 o 14 dígitos)";
         break;
       case "nrc":
-        if (!validarNRC(value)) error = "NRC inválido (solo números)";
+        if (!validarNRC(value)) error = "NRC inválido (solo números, hasta 10 dígitos)";
         break;
       case "correo":
         if (value && !validarEmail(value)) error = "Correo electrónico inválido";
@@ -110,7 +110,7 @@ export default function EmisorConfig() {
     const { name, value, files } = e.target;
     let val = files ? files[0] : value;
     if (name === "nrc") {
-      val = sanitizarSoloNumeros(val, 8);
+      val = sanitizarSoloNumeros(val, 10);
     }
     if (name === "telefono" && typeof val === "string") {
       const soloNum = sanitizarSoloNumeros(val, 8);

@@ -51,7 +51,7 @@ export default function Venta() {
 
   // --- DATOS DEL EMISOR ---
   const [emisor, setEmisor] = useState({
-    nit: "056347175",
+    nit: "03151312971037",
     nrc: "3400370",
     nombre: "CRISTIAN ALEJANDRO CAJUL BLANCO",
     actividad: "96092 - Servicios n.c.p.",

@@ -70,7 +70,7 @@ export default function DteForm({ defaultTipoDte }) {
   ]);
 
   const [emisor, setEmisor] = useState({
-    nit: "056347175",
+    nit: "03151312971037",
     nrc: "3400370",
     nombre: "CRISTIAN ALEJANDRO CAJUL BLANCO",
     actividad: "96092 - Servicios n.c.p.",
@@ -700,14 +700,14 @@ export default function DteForm({ defaultTipoDte }) {
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        maxLength={8}
-                        placeholder="Solo números (máx. 8 dígitos)"
+                        maxLength={10}
+                        placeholder="Solo números (máx. 10 dígitos)"
                         className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                         value={receptor.nrc}
                         onKeyDown={prevenirNoNumerico}
                         onChange={(e) => {
-                          // Solo números (0-9), máx 8 dígitos. Elimina instantáneamente letras, símbolos y patrones SQL
-                          const val = sanitizarSoloNumeros(e.target.value, 8);
+                          // Solo números (0-9), máx 10 dígitos. Elimina instantáneamente letras, símbolos y patrones SQL
+                          const val = sanitizarSoloNumeros(e.target.value, 10);
                           setReceptor({ ...receptor, nrc: val });
                         }}
                       />
