@@ -20,7 +20,8 @@ export default function Navbar() {
     { name: "Libros IVA", path: "/libros-iva" },
     { name: "Anulaciones", path: "/anulaciones" },
     { name: "Estados de emisión", path: "/estados-emision" },
-    { name: "configuracion de Sistema", path: "/emisorConfig" },
+    { name: "DTE Emitidos", path: "/dte-emitidos" },
+    { name: "Configuracion de Sistema", path: "/emisorConfig" },
   ];
 
   return (

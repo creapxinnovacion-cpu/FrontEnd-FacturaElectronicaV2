@@ -13,6 +13,7 @@ import LibrosIva from "./pages/LibrosIva";
 import Anulaciones from "./pages/Anulaciones";
 import EstadosEmision from "./pages/EstadosEmision";
 import EmisorConfig from "./pages/EmisorConfig";
+import DteEmitidos from "./pages/DteEmitidos";
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/libros-iva" element={<LibrosIva />} />
         <Route path="/anulaciones" element={<Anulaciones />} />
         <Route path="/estados-emision" element={<EstadosEmision />} />
+        <Route path="/dte-emitidos" element={<DteEmitidos />} />
         <Route path="/emisorConfig" element={<EmisorConfig />} />
         {/* 404 */}
         <Route
