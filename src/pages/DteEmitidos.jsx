@@ -70,6 +70,9 @@ export default function DteEmitidos() {
                   <a href={`http://localhost:8000/api/dtes/${dte.id}/pdf`} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-900 inline-flex items-center">
                     <DocumentTextIcon className="w-5 h-5 mr-1" /> PDF
                   </a>
+                  <a href={`http://localhost:8000/api/dtes/${dte.id}/json`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-900 inline-flex items-center ml-3">
+                    <DocumentTextIcon className="w-5 h-5 mr-1" /> JSON
+                  </a>
                 </td>
               </tr>
             ))}
