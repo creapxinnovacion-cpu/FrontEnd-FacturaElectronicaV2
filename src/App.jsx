@@ -14,8 +14,12 @@ import Anulaciones from "./pages/Anulaciones";
 import EstadosEmision from "./pages/EstadosEmision";
 import EmisorConfig from "./pages/EmisorConfig";
 import DteEmitidos from "./pages/DteEmitidos";
+import { useOfflineSync } from "./hooks/useOfflineSync";
 
 export default function App() {
+  // Inicializamos el worker de sincronización en segundo plano globalmente
+  useOfflineSync();
+
   return (
     <>
       {/* NAVBAR GLOBAL */}

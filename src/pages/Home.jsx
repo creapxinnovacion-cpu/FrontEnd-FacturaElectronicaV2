@@ -9,6 +9,7 @@ import EstadoConexion from "../components/EstadoConexion";
 import ResumenCard from "../components/ResumenCard";
 import ListaDocumentos from "../components/ListaDocumentos";
 import { batchService } from "../services/api/batch.service";
+import { db } from "../services/db";
 
 export default function Home() {
   const [conexion, setConexion] = useState("online");
@@ -25,23 +26,54 @@ export default function Home() {
 
   const loadDocumentos = async () => {
     try {
+      // 1. Cargar documentos del backend
       const response = await batchService.getAll();
-      const docs = response.data.map(d => ({
+      const docsBackend = response.data.map(d => ({
         id: d.id,
         nombre: `${d.numero_control} - ${d.receptor_nombre}`,
         estado: d.estado_actual,
         seleccionado: false,
+        isOffline: false
       }));
-      setDocumentos(docs);
+
+      // 2. Cargar documentos Offline de IndexedDB (Caída Nivel 1)
+      const offlineDocsRaw = await db.offlineDocs.toArray();
+      const docsOffline = offlineDocsRaw.map(d => ({
+        id: d.id,
+        nombre: `Borrador Local - ${d.receptor_nombre}`,
+        estado: d.estado,
+        seleccionado: false,
+        isOffline: true,
+        payloadOriginal: d.payloadOriginal
+      }));
+
+      setDocumentos([...docsOffline, ...docsBackend]);
     } catch (error) {
       console.error("Error al cargar documentos", error);
+      
+      // Si falla la carga del backend, mostramos al menos los offline de Dexie
+      try {
+        const offlineDocsRaw = await db.offlineDocs.toArray();
+        if (offlineDocsRaw.length > 0) {
+          setDocumentos(offlineDocsRaw.map(d => ({
+            id: d.id,
+            nombre: `Borrador Local - ${d.receptor_nombre}`,
+            estado: d.estado,
+            seleccionado: false,
+            isOffline: true,
+            payloadOriginal: d.payloadOriginal
+          })));
+        }
+      } catch (errDb) {
+        console.error("Error cargando DB local", errDb);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const pendientes = documentos.filter(d => d.estado === 'REGISTRADO').length;
-  const firmados = documentos.filter(d => d.estado === 'FIRMADO').length;
+  const pendientes = documentos.filter(d => d.estado === 'REGISTRADO' || d.isOffline).length;
+  const firmados = documentos.filter(d => d.estado === 'FIRMADO' || d.estado === 'ACEPTADO').length;
   const rechazados = documentos.filter(d => d.estado === 'RECHAZADO').length;
 
   const enviarLote = async () => {
@@ -52,13 +84,37 @@ export default function Home() {
     }
 
     setEnviando(true);
-    setMensajeEnvio("");
+    setMensajeEnvio(`Iniciando envío/sincronización de ${seleccionados.length} documentos...`);
 
-    // Aquí iría la lógica de envío masivo a Hacienda en el futuro
-    setTimeout(() => {
-      setMensajeEnvio("Funcionalidad de envío masivo en desarrollo.");
-      setEnviando(false);
-    }, 1500);
+    let exitosos = 0;
+    let fallidos = 0;
+
+    for (const doc of seleccionados) {
+      try {
+        if (doc.isOffline) {
+          // Si es offline, se crea por primera vez en el backend
+          await batchService.create(doc.payloadOriginal);
+          
+          // Si fue exitoso, lo eliminamos de IndexedDB
+          await db.offlineDocs.delete(doc.id);
+          
+          exitosos++;
+        } else {
+          // Si es un documento del backend, solo pedimos retransmitirlo
+          await batchService.transmitir(doc.id);
+          exitosos++;
+        }
+      } catch (error) {
+        console.error(`Error procesando documento ${doc.id}:`, error);
+        fallidos++;
+      }
+    }
+
+    setEnviando(false);
+    setMensajeEnvio(`Proceso completado: ${exitosos} exitosos, ${fallidos} fallidos.`);
+    
+    // Recargar la lista para reflejar los nuevos estados
+    loadDocumentos();
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import SelectorUbicacion from "../components/SelectorUbicacion";
 import ModalItemDte from "../components/ModalItemDte";
 import { batchService } from "../services/api/batch.service";
+import { db } from "../services/db";
 import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconomicas";
 import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
 import { CAT_CONDICION_PAGO } from "../utils/catalogos/catCondicionPago";
@@ -180,12 +181,13 @@ export default function Venta() {
     setLoadingEmitir(true);
     setEmisionError(null);
     setEmisionResultado(null);
+    let payload = null;
     try {
       if (items.length === 0) {
         throw new Error("Debe agregar al menos un producto o servicio antes de emitir.");
       }
 
-      const payload = {
+      payload = {
         emisor_id: 1,
         tipo_dte: 1, // Factura
         receptor_nombre: receptor.nombre || "Consumidor Final",
@@ -222,7 +224,31 @@ export default function Venta() {
       const res = await batchService.create(payload);
       setEmisionResultado(res.data);
     } catch (err) {
-      setEmisionError(err.response?.data?.error || err.message || "Error al emitir Factura ante Ministerio de Hacienda");
+      // Detección de Caída Nivel 1 o Fallo Crítico del Servidor (500+)
+      const isNetworkError = !err.response || err.code === 'ERR_NETWORK';
+      const isServerError = err.response && err.response.status >= 500;
+
+      if (isNetworkError || isServerError) {
+        // ID único para idempotencia
+        const offlineId = crypto.randomUUID ? crypto.randomUUID() : `OFF-${Date.now()}`;
+        
+        const newOfflineDoc = { 
+          id: offlineId,
+          payloadOriginal: payload,
+          estado: 'Borrador Offline', 
+          fecha: new Date().toISOString(),
+          retries: 0,
+          receptor_nombre: payload.receptor_nombre
+        };
+        
+        // Guardar en IndexedDB usando Dexie
+        await db.offlineDocs.add(newOfflineDoc);
+        
+        setEmisionError(`⚠️ Problema de conexión (${isServerError ? 'Servidor Interno Caído' : 'Sin Internet'}). El documento se guardó localmente (ID: ${offlineId}) y está en la cola de sincronización.`);
+      } else {
+        // Errores de validación 4xx o rechazos de negocio sí se muestran
+        setEmisionError(err.response?.data?.error || err.message || "Error al emitir Factura ante Ministerio de Hacienda");
+      }
     } finally {
       setLoadingEmitir(false);
     }

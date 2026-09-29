@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { 
-  XCircleIcon, 
-  ExclamationTriangleIcon, 
+import {
+  XCircleIcon,
+  ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
   DocumentTextIcon,
@@ -139,7 +139,7 @@ export default function Anulaciones() {
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={cargarDtes}
             className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition backdrop-blur-sm"
           >
@@ -151,11 +151,10 @@ export default function Anulaciones() {
 
       {/* ALERTAS */}
       {alerta.mensaje && (
-        <div className={`p-4 rounded-2xl text-sm font-bold flex items-center gap-3 shadow-md ${
-          alerta.tipo === 'success' 
-            ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
-            : 'bg-red-50 border border-red-200 text-red-800'
-        }`}>
+        <div className={`p-4 rounded-2xl text-sm font-bold flex items-center gap-3 shadow-md ${alerta.tipo === 'success'
+          ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+          : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
           {alerta.tipo === 'success' ? (
             <CheckCircleIcon className="w-6 h-6 text-emerald-600 flex-shrink-0" />
           ) : (
@@ -229,13 +228,12 @@ export default function Anulaciones() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                          esAnulado 
-                            ? "bg-red-100 text-red-700" 
-                            : item.estado_actual === "ACEPTADO"
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${esAnulado
+                          ? "bg-red-100 text-red-700"
+                          : item.estado_actual === "ACEPTADO"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-blue-100 text-blue-700"
-                        }`}>
+                          }`}>
                           {item.estado_actual}
                         </span>
                       </td>
@@ -274,7 +272,7 @@ export default function Anulaciones() {
                   DTE a afectar: <span className="font-mono font-bold text-gray-800">{selectedDte.codigo_generacion}</span>
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 font-bold text-lg"
               >
@@ -291,7 +289,7 @@ export default function Anulaciones() {
                 <select
                   value={formData.tipo_invalidacion}
                   onChange={(e) => setFormData({ ...formData, tipo_invalidacion: parseInt(e.target.value) })}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-red-500/20 outline-none"
+                  className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-red-500/20 outline-none"
                   required
                 >
                   {CAT_TIPO_INVALIDACION.map((mot) => (
@@ -312,7 +310,7 @@ export default function Anulaciones() {
                   placeholder="Explique detalladamente la razón de la invalidación..."
                   value={formData.motivo}
                   onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 focus:ring-2 focus:ring-red-500/20 outline-none"
+                  className="w-full border bg-[#777778] text-white border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 focus:ring-2 focus:ring-red-500/20 outline-none"
                   required
                 ></textarea>
               </div>
@@ -325,7 +323,7 @@ export default function Anulaciones() {
                     type="text"
                     value={formData.responsable_nombre}
                     onChange={(e) => setFormData({ ...formData, responsable_nombre: e.target.value })}
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
+                    className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
                     required
                   />
                 </div>
@@ -335,7 +333,7 @@ export default function Anulaciones() {
                     <select
                       value={formData.responsable_doc_tipo}
                       onChange={(e) => setFormData({ ...formData, responsable_doc_tipo: e.target.value })}
-                      className="border border-gray-200 rounded-2xl px-3 py-2 text-xs bg-gray-50 outline-none"
+                      className="border bg-[#777778] text-white border-gray-200 rounded-2xl px-3 py-2 text-xs bg-gray-50 outline-none"
                     >
                       {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
                         <option key={doc.codigo} value={doc.codigo}>
@@ -348,7 +346,7 @@ export default function Anulaciones() {
                       value={formData.responsable_doc_num}
                       onChange={(e) => setFormData({ ...formData, responsable_doc_num: e.target.value })}
                       placeholder="Número doc."
-                      className="sm:col-span-2 border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
+                      className="sm:col-span-2 bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
                       required
                     />
                   </div>
@@ -362,8 +360,8 @@ export default function Anulaciones() {
                     type="text"
                     value={formData.solicita_nombre}
                     onChange={(e) => setFormData({ ...formData, solicita_nombre: e.target.value })}
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
-                    required
+                    className="w-full border bg-[#777778] text-white border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
+                    placeholder="Opcional"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -372,7 +370,7 @@ export default function Anulaciones() {
                     <select
                       value={formData.solicita_doc_tipo}
                       onChange={(e) => setFormData({ ...formData, solicita_doc_tipo: e.target.value })}
-                      className="border border-gray-200 rounded-2xl px-3 py-2 text-xs bg-gray-50 outline-none"
+                      className="border bg-[#777778] text-white border-gray-200 rounded-2xl px-3 py-2 text-xs bg-gray-50 outline-none"
                     >
                       {CAT_TIPO_DOCUMENTO_IDENTIFICACION.map((doc) => (
                         <option key={doc.codigo} value={doc.codigo}>
@@ -384,9 +382,8 @@ export default function Anulaciones() {
                       type="text"
                       value={formData.solicita_doc_num}
                       onChange={(e) => setFormData({ ...formData, solicita_doc_num: e.target.value })}
-                      placeholder="Número doc."
-                      className="sm:col-span-2 border border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
-                      required
+                      placeholder="Número doc. (Opcional)"
+                      className="sm:col-span-2 border bg-[#777778] text-white border-gray-200 rounded-2xl px-4 py-2 text-sm bg-gray-50 outline-none"
                     />
                   </div>
                 </div>
