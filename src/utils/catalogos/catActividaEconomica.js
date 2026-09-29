@@ -299,5 +299,7 @@ export const CAT_ACTIVIDAD_ECONOMICA = [
     { codigo: "31008", descripcion: "Servicios de maquilado de muebles" },
     { codigo: "31009", descripcion: "Fabricación de muebles N.C.P" },
     //REPARACIÓN DE COMPUTADORAS Y DE EFECTOS PERSONALES Y ENSERES DOMÉSTICOS me salte para configura el sitema de creapx
-    { codigo: "95110", descripcion: "Reparación de computadoras y equipo periférico" }
+    { codigo: "95110", descripcion: "Reparación de computadoras y equipo periférico" },
+    { codigo: "43290", descripcion: "Otras instalaciones para obras de construcción" }
+
 ]

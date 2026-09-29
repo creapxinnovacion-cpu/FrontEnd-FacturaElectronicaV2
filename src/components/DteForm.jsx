@@ -220,17 +220,27 @@ export default function DteForm({ defaultTipoDte }) {
     }
   }, [subTotalGeral, retencionRentaPercent, isSujetoExcluido]);
 
-  // Efecto para sincronizar automáticamente el monto en "Condición de la Operación" con el subtotal de "Detalle de la Operación"
+  const isCCF = emisor.tipoDte?.includes("Crédito Fiscal");
+  // Para CCF, el precio no incluye IVA, por lo que el IVA (13%) se calcula sobre el total gravado
+  const ivaCalculado = isCCF ? (totalGravado * 0.13) : 0;
+
+  // Efecto para sincronizar automáticamente el monto en "Condición de la Operación" con el total a pagar
   useEffect(() => {
+    let montoCalculado = 0;
+    if (isSujetoExcluido) {
+      montoCalculado = subTotalGeral - retencionRenta;
+    } else {
+      montoCalculado = totalGravado + ivaCalculado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido;
+    }
     setPago((prev) => ({
       ...prev,
-      monto: subTotalGeral > 0 ? parseFloat(subTotalGeral.toFixed(2)) : 0,
+      monto: montoCalculado > 0 ? parseFloat(montoCalculado.toFixed(2)) : 0,
     }));
-  }, [subTotalGeral]);
+  }, [subTotalGeral, retencionRenta, totalGravado, ivaCalculado, totalNoSujeto, totalExento, ivaRetenido, ivaPercibido, isSujetoExcluido]);
 
   const totalPagar = isSujetoExcluido
     ? (subTotalGeral - retencionRenta)
-    : (totalGravado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
+    : (totalGravado + ivaCalculado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
 
   const handleEmitirDte = async () => {
     setLoadingEmitir(true);
@@ -737,34 +747,37 @@ export default function DteForm({ defaultTipoDte }) {
                       </span>
                     )}
                   </div>
-                  <select
-                    className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
-                    value={receptor.codActividad ? `${receptor.codActividad}||${receptor.actividadEconomica}` : ""}
+                  <input
+                    list="actividades-list"
+                    className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    placeholder="Escriba código o nombre de actividad..."
+                    value={receptor.actividadInput ?? (receptor.codActividad ? `${receptor.codActividad} - ${receptor.actividadEconomica}` : "")}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (!val) {
-                        setReceptor({ ...receptor, codActividad: "", actividadEconomica: "" });
-                      } else {
-                        const [codigo, ...descParts] = val.split("||");
+                      const found = CAT_ACTIVIDAD_ECONOMICA.find(act => `${act.codigo} - ${act.descripcion}` === val);
+                      
+                      if (found) {
                         setReceptor({
                           ...receptor,
-                          codActividad: codigo,
-                          actividadEconomica: descParts.join("||")
+                          actividadInput: val,
+                          codActividad: found.codigo,
+                          actividadEconomica: found.descripcion
+                        });
+                      } else {
+                        setReceptor({
+                          ...receptor,
+                          actividadInput: val,
+                          codActividad: "",
+                          actividadEconomica: ""
                         });
                       }
                     }}
-                  >
-                    <option value="" className="text-gray-900 bg-white">-- Seleccione Actividad Económica (Catálogo MH) --</option>
+                  />
+                  <datalist id="actividades-list">
                     {CAT_ACTIVIDAD_ECONOMICA.map((act, idx) => (
-                      <option
-                        key={`${act.codigo}-${idx}`}
-                        value={`${act.codigo}||${act.descripcion}`}
-                        className="text-gray-900 bg-white"
-                      >
-                        {act.codigo} - {act.descripcion}
-                      </option>
+                      <option key={`${act.codigo}-${idx}`} value={`${act.codigo} - ${act.descripcion}`} />
                     ))}
-                  </select>
+                  </datalist>
                   {receptor.actividadEconomica && (
                     <div className="p-2.5 bg-blue-50/80 rounded-xl border border-blue-200 text-xs text-blue-900 flex items-start gap-2 mt-1">
                       <span className="font-mono font-bold text-blue-700 bg-blue-200/70 px-1.5 py-0.5 rounded text-[11px]">
@@ -1283,6 +1296,14 @@ export default function DteForm({ defaultTipoDte }) {
                       <span className="text-lg font-semibold">$ {totalDescuento.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </>
+                )}
+
+                {/* Fila del IVA 13% para CCF */}
+                {isCCF && (
+                  <div className="flex justify-between items-center text-blue-300">
+                    <span className="text-sm font-medium">Impuesto al Valor Agregado 13%</span>
+                    <span className="text-lg font-semibold">$ {ivaCalculado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 )}
 
                 {!isSujetoExcluido && (
