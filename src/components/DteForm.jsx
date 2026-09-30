@@ -250,11 +250,12 @@ export default function DteForm({ defaultTipoDte }) {
       let tipoDteId = 1;
       const t = emisor.tipoDte || "";
       if (t.includes("Crédito Fiscal")) tipoDteId = 2;
-      else if (t.includes("Nota de Crédito")) tipoDteId = 3;
-      else if (t.includes("Nota de Débito")) tipoDteId = 4;
-      else if (t.includes("Sujeto Excluido")) tipoDteId = 9;
-      else if (t.includes("Exportación")) tipoDteId = 8;
-      else if (t.includes("Donación")) tipoDteId = 10;
+      else if (t.includes("Nota de Remisión")) tipoDteId = 3;
+      else if (t.includes("Nota de Crédito")) tipoDteId = 4;
+      else if (t.includes("Nota de Débito")) tipoDteId = 5;
+      else if (t.includes("Sujeto Excluido")) tipoDteId = 10;
+      else if (t.includes("Exportación")) tipoDteId = 9;
+      else if (t.includes("Donación")) tipoDteId = 11;
 
       const payload = {
         emisor_id: 1,
