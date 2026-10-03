@@ -192,6 +192,9 @@ export default function Venta() {
         tipo_dte: 1, // Factura
         receptor_nombre: receptor.nombre || "Consumidor Final",
         receptor_documento: receptor.numDoc || null,
+        receptor_nrc: receptor.nrc || null,
+        receptor_cod_actividad: receptor.codActividad || null,
+        receptor_desc_actividad: receptor.actividadEconomica || null,
         receptor_correo: receptor.correo || null,
         receptor_telefono: receptor.telefono || null,
         receptor_direccion: receptor.complemento || "San Salvador",

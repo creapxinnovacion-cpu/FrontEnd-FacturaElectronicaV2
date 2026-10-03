@@ -11,4 +11,9 @@ export const emisorService = {
       'Content-Type': 'multipart/form-data',
     },
   }),
+  uploadLogo: (id, formData) => http.post(`/emisores/${id}/logo`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
 };

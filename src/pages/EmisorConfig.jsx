@@ -34,6 +34,7 @@ export default function EmisorConfig() {
     telefono: "",
     passwordCertificado: "",
     certificado: null,
+    logo: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -174,6 +175,13 @@ export default function EmisorConfig() {
         await emisorService.uploadCertificate(emisorId, formData);
       }
 
+      // Carga de logo si existe
+      if (form.logo) {
+        const logoData = new FormData();
+        logoData.append("logo", form.logo);
+        await emisorService.uploadLogo(emisorId, logoData);
+      }
+
       setMessage({ text: "Configuración guardada exitosamente", type: "success" });
     } catch (error) {
       setMessage({ text: "Error al guardar la configuración", type: "error" });
@@ -264,6 +272,15 @@ export default function EmisorConfig() {
           <Input type="password" name="passwordCertificado" value={form.passwordCertificado} placeholder="Password del certificado" onChange={handleChange} />
         </div>
         <p className="text-xs text-gray-500">El certificado se almacena de forma segura en el servidor.</p>
+      </section>
+
+      {/* ===== LOGO ===== */}
+      <section className="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+        <h3 className="text-gray-900 text-lg font-semibold">Logo de la empresa</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input type="file" name="logo" accept="image/png, image/jpeg, image/jpg, image/svg+xml" onChange={handleChange} />
+        </div>
+        <p className="text-xs text-gray-500">Se usará para la representación gráfica (PDF) de los DTEs.</p>
       </section>
 
       <div className="flex justify-end">
