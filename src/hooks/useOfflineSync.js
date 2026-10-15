@@ -18,11 +18,8 @@ export function useOfflineSync() {
 
         for (const doc of pendingDocs) {
           try {
-            // Quitamos metadata interna antes de mandar al backend
-            const { id, estado, fecha, retries, payloadOriginal, receptor_nombre, ...rest } = doc;
-            
             // Enviamos el payload original limpio
-            await batchService.create(payloadOriginal);
+            await batchService.create(doc.payloadOriginal);
             
             // Si funciona, lo eliminamos de la cola
             await db.offlineDocs.delete(doc.id);
