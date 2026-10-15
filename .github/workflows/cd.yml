@@ -49,8 +49,8 @@ jobs:
       - name: 🏗️ Construir y Publicar Imagen Multi-stage (Docker + Nginx)
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
