@@ -31,8 +31,8 @@ export default function DteEmitidos() {
         <p className="text-sm text-gray-500">Historial de documentos enviados al Ministerio de Hacienda</p>
       </header>
 
-      <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white border rounded-2xl shadow-sm overflow-x-auto">
+        <table className="min-w-[1400px] w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
@@ -47,7 +47,7 @@ export default function DteEmitidos() {
             {dtes.map((dte) => (
               <tr key={dte.id} className="hover:bg-gray-50 transition">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                  {dte.fecha_emision} {dte.hora_emision}
+                  {dte.fecha_emision?.split('T')[0].split('-').reverse().join('/')} {dte.hora_emision}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">
                   {dte.receptor_nombre}
@@ -56,10 +56,9 @@ export default function DteEmitidos() {
                   ${parseFloat(dte.total_pagar).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-bold rounded-full uppercase ${
-                    dte.estado_actual === 'ACEPTADO' ? 'bg-green-100 text-green-700' : 
+                  <span className={`px-2 py-1 text-xs font-bold rounded-full uppercase ${dte.estado_actual === 'ACEPTADO' ? 'bg-green-100 text-green-700' :
                     dte.estado_actual === 'RECHAZADO' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                  }`}>
+                    }`}>
                     {dte.estado_actual}
                   </span>
                 </td>

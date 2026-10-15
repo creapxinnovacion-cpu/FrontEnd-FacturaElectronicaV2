@@ -6,6 +6,7 @@ import {
   ArrowPathIcon,
   PaperAirplaneIcon,
   InformationCircleIcon,
+  EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 
 import EstadoConexion from "../components/EstadoConexion";
@@ -19,6 +20,7 @@ export default function Home() {
   const [documentos, setDocumentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [mensajeEnvio, setMensajeEnvio] = useState("");
 
   useEffect(() => {
@@ -32,9 +34,13 @@ export default function Home() {
       // 1. Cargar documentos del backend
       const response = await batchService.getAll();
       const docsBackend = response.data.map((d) => ({
+        ...d,
         id: d.id,
-        nombre: `${d.numero_control} - ${d.receptor_nombre}`,
+        nombre: `${d.numero_control || 'DTE'} - ${d.receptor_nombre}`,
         estado: d.estado_actual,
+        sello: d.sello_recepcion,
+        correo: d.receptor_correo,
+        codigoGeneracion: d.codigo_generacion,
         seleccionado: false,
         isOffline: false,
       }));
@@ -85,6 +91,12 @@ export default function Home() {
   ).length;
   const rechazados = documentos.filter((d) => d.estado === "RECHAZADO").length;
 
+  // Documentos seleccionados que están firmados y sellados por Hacienda (ACEPTADO)
+  const seleccionadosFirmadosYSellados = documentos.filter(
+    (d) => d.seleccionado && !d.isOffline && d.estado === "ACEPTADO"
+  );
+  const puedeEnviarCorreo = seleccionadosFirmadosYSellados.length > 0;
+
   const enviarLote = async () => {
     const seleccionados = documentos.filter((d) => d.seleccionado);
     if (seleccionados.length === 0) {
@@ -94,7 +106,7 @@ export default function Home() {
 
     setEnviando(true);
     setMensajeEnvio(
-      `Iniciando envío/sincronización de ${seleccionados.length} documentos...`
+      `Iniciando retransmisión/sincronización de ${seleccionados.length} documento(s) a Hacienda...`
     );
 
     let exitosos = 0;
@@ -111,7 +123,7 @@ export default function Home() {
 
           exitosos++;
         } else {
-          // Si es un documento del backend, solo pedimos retransmitirlo
+          // Si es un documento del backend, pedimos retransmitirlo
           await batchService.transmitir(doc.id);
           exitosos++;
         }
@@ -123,11 +135,57 @@ export default function Home() {
 
     setEnviando(false);
     setMensajeEnvio(
-      `Proceso completado: ${exitosos} exitosos, ${fallidos} fallidos.`
+      `Retransmisión finalizada: ${exitosos} exitoso(s)${
+        fallidos > 0 ? `, ${fallidos} con fallas` : ""
+      }. ${
+        exitosos > 0
+          ? "¡Los documentos ahora están firmados y sellados! Se ha habilitado el botón 'Enviar al Correo' para remitirlos al cliente."
+          : ""
+      }`
     );
 
     // Recargar la lista para reflejar los nuevos estados
     loadDocumentos();
+  };
+
+  const enviarCorreosSeleccionados = async () => {
+    if (seleccionadosFirmadosYSellados.length === 0) {
+      setMensajeEnvio("Selecciona al menos un documento firmado y sellado para enviar al correo.");
+      return;
+    }
+
+    setEnviandoCorreo(true);
+    setMensajeEnvio(
+      `Iniciando envío de DTE (PDF y JSON) por correo para ${seleccionadosFirmadosYSellados.length} documento(s)...`
+    );
+
+    let exitosos = 0;
+    let fallidos = 0;
+
+    for (const doc of seleccionadosFirmadosYSellados) {
+      try {
+        let correoDest = doc.correo;
+        if (!correoDest) {
+          correoDest = prompt(`El comprobante ${doc.nombre} no tiene correo registrado. Ingrese el correo del cliente:`);
+        }
+        if (!correoDest) {
+          fallidos++;
+          continue;
+        }
+        await batchService.enviarCorreo(doc.id, correoDest);
+        exitosos++;
+      } catch (error) {
+        console.error(`Error enviando correo para documento ${doc.id}:`, error);
+        fallidos++;
+      }
+    }
+
+    setEnviandoCorreo(false);
+    setMensajeEnvio(
+      `Envío al correo completado: ${exitosos} documento(s) enviado(s) con éxito (PDF y JSON)${
+        fallidos > 0 ? `, ${fallidos} omitido(s) o con fallas` : ""
+      }.`
+    );
   };
 
   const toggleSelectAll = () => {
@@ -241,9 +299,9 @@ export default function Home() {
 
               <button
                 onClick={enviarLote}
-                disabled={enviando || documentos.length === 0}
+                disabled={enviando || enviandoCorreo || documentos.length === 0}
                 className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-xs cursor-pointer ${
-                  enviando || documentos.length === 0
+                  enviando || enviandoCorreo || documentos.length === 0
                     ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                     : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-[0.98]"
                 }`}
@@ -251,13 +309,44 @@ export default function Home() {
                 {enviando ? (
                   <>
                     <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    <span>Procesando...</span>
+                    <span>Transmitiendo...</span>
                   </>
                 ) : (
                   <>
                     <PaperAirplaneIcon className="w-4 h-4" />
                     <span>
                       Transmitir a Hacienda {seleccionadosCount > 0 ? `(${seleccionadosCount})` : ""}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {/* BOTÓN ENVIAR AL CORREO: Se habilita cuando el documento está firmado y sellado por Hacienda */}
+              <button
+                type="button"
+                onClick={enviarCorreosSeleccionados}
+                disabled={enviando || enviandoCorreo || !puedeEnviarCorreo}
+                title={
+                  puedeEnviarCorreo
+                    ? `Enviar DTE (PDF y JSON) al correo de ${seleccionadosFirmadosYSellados.length} documento(s) firmado(s) y sellado(s)`
+                    : "Requiere retransmitir a Hacienda y estar firmado y sellado para habilitar el envío al correo"
+                }
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-xs ${
+                  enviando || enviandoCorreo || !puedeEnviarCorreo
+                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                {enviandoCorreo ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    <span>Enviando Correo...</span>
+                  </>
+                ) : (
+                  <>
+                    <EnvelopeIcon className="w-4 h-4" />
+                    <span>
+                      Enviar al Correo {seleccionadosFirmadosYSellados.length > 0 ? `(${seleccionadosFirmadosYSellados.length})` : ""}
                     </span>
                   </>
                 )}

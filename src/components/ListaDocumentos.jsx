@@ -1,11 +1,38 @@
+import { useState } from "react";
 import { batchService } from "../services/api/batch.service";
-import { DocumentArrowDownIcon, EyeIcon } from "@heroicons/react/24/outline";
+import {
+  DocumentArrowDownIcon,
+  EyeIcon,
+  EnvelopeIcon,
+  ArrowPathIcon,
+} from "@heroicons/react/24/outline";
 
 export default function ListaDocumentos({ documentos, setDocumentos }) {
+  const [enviandoDocId, setEnviandoDocId] = useState(null);
+
   const toggleSeleccion = (id) => {
     setDocumentos((prev) =>
       prev.map((doc) => (doc.id === id ? { ...doc, seleccionado: !doc.seleccionado } : doc))
     );
+  };
+
+  const handleEnviarCorreo = async (doc) => {
+    if (doc.isOffline || doc.estado !== "ACEPTADO") return;
+    const correoDest = prompt(
+      `Enviar DTE (PDF y JSON) al cliente:`,
+      doc.correo || ""
+    );
+    if (!correoDest) return;
+
+    setEnviandoDocId(doc.id);
+    try {
+      const res = await batchService.enviarCorreo(doc.id, correoDest);
+      alert(res.data?.message || `DTE (PDF y JSON) enviado exitosamente a ${correoDest}`);
+    } catch (err) {
+      alert("Error al enviar correo: " + (err.response?.data?.error || err.message));
+    } finally {
+      setEnviandoDocId(null);
+    }
   };
 
   const getStatusBadge = (estado, isOffline) => {
@@ -63,6 +90,11 @@ export default function ListaDocumentos({ documentos, setDocumentos }) {
                 >
                   {doc.estado}
                 </span>
+                {doc.sello && (
+                  <span className="hidden sm:inline-block text-[10px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 truncate max-w-[140px]" title={`Sello MH: ${doc.sello}`}>
+                    {doc.sello}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
@@ -82,6 +114,29 @@ export default function ListaDocumentos({ documentos, setDocumentos }) {
                 className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
               >
                 <DocumentArrowDownIcon className="w-4 h-4" />
+              </button>
+
+              {/* Botón Envío de Correo: Habilitado cuando esté firmado y sellado (ACEPTADO) */}
+              <button
+                type="button"
+                onClick={() => handleEnviarCorreo(doc)}
+                disabled={doc.isOffline || doc.estado !== "ACEPTADO" || enviandoDocId === doc.id}
+                title={
+                  doc.isOffline || doc.estado !== "ACEPTADO"
+                    ? "Requiere retransmitir a Hacienda y estar firmado y sellado para habilitar el envío al correo"
+                    : `Enviar DTE (PDF y JSON) a ${doc.correo || "correo del receptor"}`
+                }
+                className={`p-2 rounded-lg transition-colors ${
+                  doc.isOffline || doc.estado !== "ACEPTADO"
+                    ? "text-slate-300 cursor-not-allowed opacity-50"
+                    : "text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                }`}
+              >
+                {enviandoDocId === doc.id ? (
+                  <ArrowPathIcon className="w-4 h-4 animate-spin text-indigo-600" />
+                ) : (
+                  <EnvelopeIcon className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>

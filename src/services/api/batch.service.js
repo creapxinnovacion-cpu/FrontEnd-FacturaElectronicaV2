@@ -18,5 +18,7 @@ export const batchService = {
   },
   consultarMh: (id) => http.get(`/dtes/${id}/consultar-mh`),
   transmitir: (id) => http.post(`/dtes/${id}/transmitir`),
+  enviarCorreo: (id, correo) => http.post(`/dtes/${id}/enviar-correo`, { correo }),
   getDiagnostico: () => http.get('/test/diagnostico'),
 };
+

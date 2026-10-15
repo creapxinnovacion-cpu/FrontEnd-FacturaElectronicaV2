@@ -35,6 +35,7 @@ import {
   ShieldCheckIcon,
   TruckIcon,
   HeartIcon,
+  EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 import ModalItemDte from "./ModalItemDte";
 
@@ -256,6 +257,7 @@ export default function DteForm({ defaultTipoDte }) {
       const payload = {
         emisor_id: 1,
         tipo_dte: tipoDteId,
+        enviar_correo: true, // Venta normal: enviar DTE (PDF y JSON) al correo del cliente
         receptor_nombre: receptor.nombre || "Consumidor Final",
         receptor_documento: receptor.numDoc || null,
         receptor_tipo_documento: receptor.tipoDoc || "36",
@@ -349,6 +351,17 @@ export default function DteForm({ defaultTipoDte }) {
                 <p className="text-xs text-emerald-300">
                   Sello MH: <span className="font-mono text-white">{emisionResultado.dte?.sello_recepcion || emisionResultado.transmission?.sello || "Otorgado"}</span>
                 </p>
+                {emisionResultado.correo_enviado ? (
+                  <p className="text-xs text-emerald-200 mt-1 flex items-center gap-1.5 font-medium bg-emerald-900/60 py-0.5 px-2 rounded-md w-fit">
+                    <EnvelopeIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>DTE (PDF y JSON) enviado por correo a: <strong className="text-white font-mono">{receptor.correo}</strong></span>
+                  </p>
+                ) : receptor.correo ? (
+                  <p className="text-xs text-emerald-300/80 mt-1 flex items-center gap-1.5">
+                    <EnvelopeIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Correo registrado: <span className="text-white font-mono">{receptor.correo}</span></span>
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -370,6 +383,23 @@ export default function DteForm({ defaultTipoDte }) {
                   >
                     DESCARGAR PDF
                   </a>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const correoDest = prompt("Confirmar o ingresar correo del cliente para enviar DTE (PDF y JSON):", receptor.correo || "");
+                      if (!correoDest) return;
+                      try {
+                        await batchService.enviarCorreo(emisionResultado.dte.id, correoDest);
+                        alert(`DTE (PDF y JSON) enviado exitosamente a ${correoDest}`);
+                      } catch (err) {
+                        alert("Error al enviar correo: " + (err.response?.data?.error || err.message));
+                      }
+                    }}
+                    className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 cursor-pointer"
+                  >
+                    <EnvelopeIcon className="w-4 h-4" />
+                    ENVIAR CORREO
+                  </button>
                 </>
               )}
               <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-full font-bold">
