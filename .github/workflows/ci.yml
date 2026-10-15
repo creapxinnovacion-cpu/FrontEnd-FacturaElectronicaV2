@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  HUSKY: 0
+
 jobs:
   # =========================================================================
   # PILAR 1 & 2: Calidad de Código, Linting y Auditoría de Seguridad

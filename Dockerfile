@@ -6,6 +6,9 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package*.json ./
 
+# Desactivar husky en el contenedor de construcción Docker
+ENV HUSKY=0
+
 # Instalar dependencias
 RUN npm install
 
