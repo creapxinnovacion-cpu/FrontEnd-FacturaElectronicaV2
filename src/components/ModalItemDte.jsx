@@ -41,6 +41,20 @@ export default function ModalItemDte({ isOpen, onClose, onSave, initialData = nu
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const resetForm = () => {
+    setTipoItem("1");
+    setCantidad(1);
+    setUnidadMedida("59");
+    setCodigo("");
+    setDescripcion("");
+    setTipoVenta("Gravado");
+    setPrecio("");
+    setDescuento(0);
+    setTributos(["20"]);
+    setTributosInfo([]);
+    setErrorValidacion("");
+  };
+
   // Cargar datos iniciales si es edición
   useEffect(() => {
     if (initialData) {
@@ -59,20 +73,6 @@ export default function ModalItemDte({ isOpen, onClose, onSave, initialData = nu
     }
     setErrorValidacion("");
   }, [initialData, isOpen]);
-
-  const resetForm = () => {
-    setTipoItem("1");
-    setCantidad(1);
-    setUnidadMedida("59");
-    setCodigo("");
-    setDescripcion("");
-    setTipoVenta("Gravado");
-    setPrecio("");
-    setDescuento(0);
-    setTributos(["20"]);
-    setTributosInfo([]);
-    setErrorValidacion("");
-  };
 
   // Cálculo del total reactivo
   const cantNum = parseFloat(cantidad) || 0;

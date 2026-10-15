@@ -60,14 +60,14 @@ export default function SelectorUbicacion({
     <div className={`grid ${gridCols} gap-4`}>
       {/* DEPARTAMENTO */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-gray-500 ml-1">
+        <label className="text-xs font-semibold text-slate-600 ml-0.5">
           {labelPrefix}Departamento (CAT-012)
         </label>
         <select
           value={departamento}
           onChange={handleDeptoChange}
           disabled={disabled}
-          className="w-full bg-[#777778] text-white  border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60 disabled:bg-slate-100 cursor-pointer"
         >
           <option value="">-- Seleccione Departamento --</option>
           {CAT_DEPTO.map((d) => (
@@ -80,14 +80,14 @@ export default function SelectorUbicacion({
 
       {/* MUNICIPIO (44 Oficiales) */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-gray-500 ml-1">
+        <label className="text-xs font-semibold text-slate-600 ml-0.5">
           {labelPrefix}Municipio (CAT-013)
         </label>
         <select
           value={municipio}
           onChange={handleMuniChange}
           disabled={disabled || !departamento}
-          className="w-full bg-[#777778] text-white  bg-[#777778] border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60 disabled:bg-slate-100 cursor-pointer"
         >
           <option value="">-- Seleccione Municipio --</option>
           {municipiosDisponibles.map((m) => (
@@ -100,14 +100,14 @@ export default function SelectorUbicacion({
 
       {/* DISTRITO (262 Oficiales CAT-008) */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-gray-500 ml-1">
+        <label className="text-xs font-semibold text-slate-600 ml-0.5">
           {labelPrefix}Distrito (CAT-008)
         </label>
         <select
           value={distrito}
           onChange={handleDistritoChange}
           disabled={disabled || !municipio}
-          className="w-full  bg-[#777778] text-white  border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-60 disabled:bg-slate-100 cursor-pointer"
         >
           <option value="">-- Seleccione Distrito --</option>
           {distritosDisponibles.map((dis) => (
