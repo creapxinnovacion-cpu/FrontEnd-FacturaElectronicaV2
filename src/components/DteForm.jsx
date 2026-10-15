@@ -18,9 +18,6 @@ import { CAT_FORMA_PAGOS } from "../utils/catalogos/catFormaPagos";
 import {
   sanitizarSoloNumeros,
   prevenirNoNumerico,
-  validarDUI,
-  validarNRC,
-  validarNIT,
 } from "../utils/validacionesMH";
 
 import {
@@ -69,7 +66,7 @@ export default function DteForm({ defaultTipoDte }) {
     { ...createEmptyItem(1), descripcion: "Producto Ejemplo" }
   ]);
 
-  const [emisor, setEmisor] = useState({
+  const [emisor, _setEmisor] = useState({
     nit: "03151312971037",
     nrc: "3400370",
     nombre: "CRISTIAN ALEJANDRO CAJUL BLANCO",
@@ -126,7 +123,7 @@ export default function DteForm({ defaultTipoDte }) {
     fechaGeneracion: ""
   });
 
-  const [datosEntrega, setDatosEntrega] = useState({
+  const [datosEntrega, _setDatosEntrega] = useState({
     tituloBienes: "01", // CAT-027 Depósito
     modoTransporte: "1", // CAT-028 Terrestre
     recintoFiscal: "", // CAT-026 Recinto Fiscal
@@ -196,7 +193,6 @@ export default function DteForm({ defaultTipoDte }) {
   const isNota = emisor.tipoDte === "Nota de Crédito" || emisor.tipoDte === "Nota de Débito";
   const isSujetoExcluido = emisor.tipoDte === "Factura de Sujeto Excluido";
   const isDonacion = emisor.tipoDte === "Comprobante de Donación" || emisor.tipoDte?.toLowerCase().includes("donación");
-  const isExportacion = emisor.tipoDte === "Facturas de exportación" || emisor.tipoDte?.toLowerCase().includes("exportación");
 
   const totalNoSujeto = items.reduce((acc, item) => acc + (item.subTotalNoSujeto || 0), 0);
   const totalExento = items.reduce((acc, item) => acc + (item.subTotalExento || 0), 0);
@@ -326,9 +322,6 @@ export default function DteForm({ defaultTipoDte }) {
             <p className="text-blue-200 mt-1 opacity-80">Sistema de Facturación Electrónica</p>
           </div>
           <div className="flex gap-3">
-            <button className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
-              Guardar Borrador
-            </button>
             <button
               onClick={handleEmitirDte}
               disabled={loadingEmitir}
@@ -370,13 +363,13 @@ export default function DteForm({ defaultTipoDte }) {
                     <DocumentTextIcon className="w-4 h-4" />
                     VER PDF
                   </a>
-                  <button
-                    type="button"
-                    onClick={() => batchService.downloadPdf(emisionResultado.dte.id, emisionResultado.dte.codigo_generacion)}
+                  <a
+                    href={batchService.getPdfUrl(emisionResultado.dte.id, false)}
+                    download
                     className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
                   >
                     DESCARGAR PDF
-                  </button>
+                  </a>
                 </>
               )}
               <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-full font-bold">
@@ -757,7 +750,7 @@ export default function DteForm({ defaultTipoDte }) {
                     onChange={(e) => {
                       const val = e.target.value;
                       const found = CAT_ACTIVIDAD_ECONOMICA.find(act => `${act.codigo} - ${act.descripcion}` === val);
-                      
+
                       if (found) {
                         setReceptor({
                           ...receptor,
