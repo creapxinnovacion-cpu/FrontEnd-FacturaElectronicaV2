@@ -29,8 +29,8 @@ export default function App() {
       <Routes>
         {/* HOME / DASHBOARD */}
         <Route path="/" element={<Home />} />
-        <Route path="/venta" element={<Venta />} />
-        <Route path="/ventas" element={<Venta />} />
+        <Route path="/venta" element={<FacturaConsumidor />} />
+        <Route path="/ventas" element={<FacturaConsumidor />} />
         <Route path="/factura-consumidor" element={<FacturaConsumidor />} />
         <Route path="/credito-fiscal" element={<CreditoFiscal />} />
         <Route path="/nota-credito" element={<NotaCredito />} />

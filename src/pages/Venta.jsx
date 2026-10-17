@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import SelectorUbicacion from "../components/SelectorUbicacion";
 import ModalItemDte from "../components/ModalItemDte";
 import { batchService } from "../services/api/batch.service";
+import { clienteService } from "../services/api/cliente.service";
 import { db } from "../services/db";
 import { CAT_ACTIVIDAD_ECONOMICA } from "../utils/catalogos/catActividadesEconomicas";
 import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
@@ -19,7 +20,9 @@ import {
   ShoppingCartIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  MagnifyingGlassIcon,
+  BookmarkSquareIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Venta() {
@@ -92,6 +95,130 @@ export default function Venta() {
     correo: "",
     telefono: ""
   });
+
+  // --- BÚSQUEDA Y VINCULACIÓN DE CLIENTES ---
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [resultadosClientes, setResultadosClientes] = useState([]);
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [guardarCliente, setGuardarCliente] = useState(true);
+  const [guardandoClienteManual, setGuardandoClienteManual] = useState(false);
+  const [mensajeClienteGuardado, setMensajeClienteGuardado] = useState(null);
+
+  useEffect(() => {
+    if (!busquedaCliente || busquedaCliente.trim().length < 2) {
+      setResultadosClientes([]);
+      setBuscandoCliente(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setBuscandoCliente(true);
+        const res = await clienteService.buscar(busquedaCliente.trim());
+        setResultadosClientes(res.data || []);
+      } catch (err) {
+        console.error("Error al buscar clientes:", err);
+        setResultadosClientes([]);
+      } finally {
+        setBuscandoCliente(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [busquedaCliente]);
+
+  const handleSeleccionarCliente = (c) => {
+    setClienteSeleccionado(c);
+    setBusquedaCliente(c.nombre || "");
+    setResultadosClientes([]);
+
+    let tDoc = "36";
+    let nDoc = "";
+    if (c.dui && c.dui.trim()) {
+      tDoc = "13";
+      nDoc = c.dui.trim();
+    } else if (c.nit && c.nit.trim()) {
+      tDoc = "36";
+      nDoc = c.nit.trim();
+    }
+
+    setReceptor(prev => ({
+      ...prev,
+      tipoDoc: tDoc,
+      numDoc: nDoc,
+      nombre: c.nombre || "",
+      nombreComercial: c.nombre_comercial || "",
+      nrc: c.nrc || "",
+      codActividad: c.cod_actividad || "",
+      actividadEconomica: c.desc_actividad || "",
+      departamento: c.departamento ? String(c.departamento).padStart(2, '0') : "06",
+      municipio: c.municipio ? String(c.municipio).padStart(2, '0') : "23",
+      distrito: c.distrito ? String(c.distrito).padStart(2, '0') : "01",
+      complemento: c.complemento || c.direccion || "",
+      correo: c.correo || "",
+      telefono: c.telefono || ""
+    }));
+  };
+
+  const handleLimpiarCliente = () => {
+    setClienteSeleccionado(null);
+    setBusquedaCliente("");
+    setResultadosClientes([]);
+    setReceptor(prev => ({
+      ...prev,
+      numDoc: "",
+      nombre: "",
+      nombreComercial: "",
+      nrc: "",
+      codActividad: "",
+      actividadEconomica: "",
+      complemento: "",
+      correo: "",
+      telefono: ""
+    }));
+  };
+
+  const handleGuardarClienteManual = async () => {
+    if (!receptor.nombre || !receptor.nombre.trim()) {
+      alert("Ingrese al menos el nombre del cliente para guardarlo.");
+      return;
+    }
+
+    setGuardandoClienteManual(true);
+    setMensajeClienteGuardado(null);
+    try {
+      const cleanDoc = (receptor.numDoc || "").replace(/[^0-9]/g, "");
+      const isDui = receptor.tipoDoc === "13" || cleanDoc.length === 9;
+      const isNit = receptor.tipoDoc === "36" || cleanDoc.length === 14;
+
+      const payload = {
+        nombre: receptor.nombre.trim(),
+        nombre_comercial: receptor.nombreComercial ? receptor.nombreComercial.trim() : null,
+        dui: isDui ? cleanDoc : null,
+        nit: isNit ? cleanDoc : null,
+        nrc: receptor.nrc ? receptor.nrc.trim() : null,
+        cod_actividad: receptor.codActividad || null,
+        desc_actividad: receptor.actividadEconomica || null,
+        correo: receptor.correo ? receptor.correo.trim() : null,
+        telefono: receptor.telefono ? receptor.telefono.trim() : null,
+        direccion: receptor.complemento ? receptor.complemento.trim() : "San Salvador",
+        departamento: receptor.departamento || "06",
+        municipio: receptor.municipio || "23",
+        distrito: receptor.distrito || "01",
+        complemento: receptor.complemento ? receptor.complemento.trim() : null,
+      };
+
+      const res = await clienteService.guardar(payload);
+      setClienteSeleccionado(res.data.cliente);
+      setMensajeClienteGuardado("✓ Cliente guardado con éxito en la base de datos");
+      setTimeout(() => setMensajeClienteGuardado(null), 4000);
+    } catch (err) {
+      alert("Error al guardar cliente: " + (err.response?.data?.message || err.response?.data?.error || err.message));
+    } finally {
+      setGuardandoClienteManual(false);
+    }
+  };
 
   // --- CONDICIÓN Y FORMAS DE PAGO (Alineado a captura 001902 y 002628) ---
   const [pago, setPago] = useState({
@@ -191,7 +318,9 @@ export default function Venta() {
       payload = {
         emisor_id: 1,
         tipo_dte: 1, // Factura
+        guardar_cliente: guardarCliente,
         receptor_nombre: receptor.nombre || "Consumidor Final",
+        receptor_nombre_comercial: receptor.nombreComercial || null,
         receptor_documento: receptor.numDoc || null,
         receptor_nrc: receptor.nrc || null,
         receptor_cod_actividad: receptor.codActividad || null,
@@ -204,6 +333,7 @@ export default function Venta() {
         receptor_distrito: receptor.distrito || "01",
         receptor_complemento: receptor.complemento || "Sin complemento",
         items: items.map(it => ({
+          producto_id: it.producto_id || null,
           tipo_item: parseInt(it.tipoItem || "1"),
           codigo: it.codigo || null,
           descripcion: it.descripcion || "Producto/Servicio",
@@ -379,7 +509,123 @@ export default function Venta() {
                   Datos del Receptor (Cliente)
                 </h2>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium">Requerido por MH</span>
+              <span className="text-[11px] text-slate-500 font-medium">Autocompletado & Agenda</span>
+            </div>
+
+            {/* BARRA DE BÚSQUEDA Y GESTIÓN DE CLIENTES */}
+            <div className="px-6 pt-5 pb-4 border-b border-slate-200/80 bg-slate-50/40">
+              <div className="relative">
+                <div className="flex items-center gap-2.5 bg-white border border-slate-200 text-slate-800 rounded-xl px-4 py-2.5 shadow-xs focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente registrado por DUI, NIT, NRC, Teléfono o Nombre..."
+                    className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
+                    value={busquedaCliente}
+                    onChange={(e) => setBusquedaCliente(e.target.value)}
+                  />
+                  {buscandoCliente && (
+                    <span className="text-xs text-blue-600 font-semibold animate-pulse flex-shrink-0">
+                      Buscando...
+                    </span>
+                  )}
+                  {busquedaCliente && (
+                    <button
+                      type="button"
+                      onClick={handleLimpiarCliente}
+                      className="text-slate-400 hover:text-slate-600 text-xs px-1.5 py-0.5 rounded cursor-pointer"
+                      title="Limpiar búsqueda"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* DROPDOWN DE RESULTADOS */}
+                {resultadosClientes.length > 0 && (
+                  <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white border border-blue-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
+                    {resultadosClientes.map((c) => (
+                      <div
+                        key={c.id}
+                        onClick={() => handleSeleccionarCliente(c)}
+                        className="p-3.5 hover:bg-blue-50/80 cursor-pointer transition-colors flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{c.nombre}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {[
+                              c.dui ? `DUI: ${c.dui}` : null,
+                              c.nit ? `NIT: ${c.nit}` : null,
+                              c.nrc ? `NRC: ${c.nrc}` : null,
+                              c.telefono ? `Tel: ${c.telefono}` : null,
+                              c.correo,
+                            ]
+                              .filter(Boolean)
+                              .join(" • ")}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg">
+                          Cargar Datos
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* BARRA DE ACCIÓN Y CHECKBOX DE GUARDADO */}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                {clienteSeleccionado ? (
+                  <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-medium">
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
+                    <span>
+                      Cliente vinculado: <strong>{clienteSeleccionado.nombre}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLimpiarCliente}
+                      className="text-rose-600 hover:underline ml-1 font-bold cursor-pointer"
+                    >
+                      Desvincular
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-slate-400">
+                    Escriba en el buscador para autocompletar o ingrese los datos manualmente.
+                  </span>
+                )}
+
+                <div className="flex items-center gap-3 ml-auto">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={guardarCliente}
+                      onChange={(e) => setGuardarCliente(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs font-semibold text-slate-700">
+                      Guardar / actualizar en la tabla clientes
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleGuardarClienteManual}
+                    disabled={guardandoClienteManual}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Guardar o actualizar la ficha de este cliente en la base de datos ahora"
+                  >
+                    <BookmarkSquareIcon className="w-3.5 h-3.5 text-slate-600" />
+                    {guardandoClienteManual ? "Guardando..." : "Guardar Cliente"}
+                  </button>
+                </div>
+              </div>
+
+              {mensajeClienteGuardado && (
+                <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl font-medium">
+                  {mensajeClienteGuardado}
+                </div>
+              )}
             </div>
 
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">

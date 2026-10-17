@@ -16,7 +16,6 @@ export default function Navbar() {
   ];
 
   const menu = [
-    { name: "POS Venta", path: "/venta" },
     { name: "Reportes", path: "/reportes" },
     { name: "Stock", path: "/stock" },
     { name: "Libros IVA", path: "/libros-iva" },
