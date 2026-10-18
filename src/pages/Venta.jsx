@@ -23,12 +23,16 @@ import {
   ChevronDownIcon,
   MagnifyingGlassIcon,
   BookmarkSquareIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Venta() {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [emisionResultado, setEmisionResultado] = useState(null);
+  const [emisionAlerta, setEmisionAlerta] = useState(null);
   const [emisionError, setEmisionError] = useState(null);
+  const [retransmitiendo, setRetransmitiendo] = useState(false);
 
   // --- MODAL ÍTEM DTE ---
   const [modalItemOpen, setModalItemOpen] = useState(false);
@@ -308,6 +312,7 @@ export default function Venta() {
   const handleEmitirVenta = async () => {
     setLoadingEmitir(true);
     setEmisionError(null);
+    setEmisionAlerta(null);
     setEmisionResultado(null);
     let payload = null;
     try {
@@ -356,14 +361,37 @@ export default function Venta() {
       };
 
       const res = await batchService.create(payload);
-      setEmisionResultado(res.data);
+
+      // Si el backend devuelve 202 Accepted (contingencia / firmado sin transmisión inmediata)
+      if (res.status === 202 || res.data?.estado === 'FIRMADO') {
+        setEmisionAlerta({
+          tipo: 'warning',
+          titulo: 'Factura Guardada y Firmada (Pendiente de Transmisión)',
+          mensaje: res.data?.error || 'La venta y el inventario quedaron registrados y firmados digitalmente. Hacienda no respondió en este instante.',
+          dteId: res.data?.dte_id || res.data?.dte?.id,
+          codigoGeneracion: res.data?.codigo_generacion || res.data?.dte?.codigo_generacion,
+          numeroControl: res.data?.numero_control || res.data?.dte?.numero_control
+        });
+      } else {
+        setEmisionResultado(res.data);
+      }
     } catch (err) {
-      // Detección de Caída Nivel 1 o Fallo Crítico del Servidor (500+)
+      // 1. Fallo del Firmador Java (502 Bad Gateway con DTE ya guardado en REGISTRADO)
+      if (err.response?.status === 502 && err.response.data?.dte_id) {
+        setEmisionAlerta({
+          tipo: 'error_firmador',
+          titulo: 'Venta Registrada (Firma Digital Pendiente)',
+          mensaje: `La venta fue creada exitosamente en base de datos (ID: ${err.response.data.dte_id}), pero el microservicio firmador no respondió. Podrá firmarla y transmitirla desde la Consola cuando el servicio se restablezca.`,
+          dteId: err.response.data.dte_id
+        });
+        return;
+      }
+
+      // 2. Detección de Caída Nivel 1 o Fallo Crítico del Servidor (500+)
       const isNetworkError = !err.response || err.code === 'ERR_NETWORK';
       const isServerError = err.response && err.response.status >= 500;
 
       if (isNetworkError || isServerError) {
-        // ID único para idempotencia
         const offlineId = crypto.randomUUID ? crypto.randomUUID() : `OFF-${Date.now()}`;
         
         const newOfflineDoc = { 
@@ -372,19 +400,30 @@ export default function Venta() {
           estado: 'Borrador Offline', 
           fecha: new Date().toISOString(),
           retries: 0,
-          receptor_nombre: payload.receptor_nombre
+          receptor_nombre: payload?.receptor_nombre || "Consumidor Final"
         };
         
-        // Guardar en IndexedDB usando Dexie
         await db.offlineDocs.add(newOfflineDoc);
-        
         setEmisionError(`⚠️ Problema de conexión (${isServerError ? 'Servidor Interno Caído' : 'Sin Internet'}). El documento se guardó localmente (ID: ${offlineId}) y está en la cola de sincronización.`);
       } else {
-        // Errores de validación 4xx o rechazos de negocio sí se muestran
         setEmisionError(err.response?.data?.error || err.message || "Error al emitir Factura ante Ministerio de Hacienda");
       }
     } finally {
       setLoadingEmitir(false);
+    }
+  };
+
+  const handleReintentarTransmision = async (dteId) => {
+    if (!dteId) return;
+    setRetransmitiendo(true);
+    try {
+      const res = await batchService.transmitir(dteId);
+      setEmisionAlerta(null);
+      setEmisionResultado(res.data);
+    } catch (err) {
+      alert("Error al retransmitir a Hacienda: " + (err.response?.data?.error || err.message));
+    } finally {
+      setRetransmitiendo(false);
     }
   };
 
@@ -478,6 +517,54 @@ export default function Venta() {
             <span className="self-start sm:self-center text-xs bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
               {emisionResultado.dte?.estado_actual || "ACEPTADO"}
             </span>
+          </div>
+        </div>
+      )}
+
+      {emisionAlerta && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="bg-amber-50 border border-amber-300 text-amber-950 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs">
+            <div className="flex items-start gap-3.5">
+              <ExclamationTriangleIcon className="w-7 h-7 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-sm text-amber-950">
+                  {emisionAlerta.titulo}
+                </p>
+                <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                  {emisionAlerta.mensaje}
+                </p>
+                {emisionAlerta.codigoGeneracion && (
+                  <p className="text-xs text-amber-900 mt-1">
+                    Código de Generación:{" "}
+                    <span className="font-mono-code font-bold text-amber-950">
+                      {emisionAlerta.codigoGeneracion}
+                    </span>
+                  </p>
+                )}
+                {emisionAlerta.numeroControl && (
+                  <p className="text-xs text-amber-900">
+                    Control:{" "}
+                    <span className="font-mono-code text-amber-950">
+                      {emisionAlerta.numeroControl}
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {emisionAlerta.dteId && (
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => handleReintentarTransmision(emisionAlerta.dteId)}
+                  disabled={retransmitiendo}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95"
+                >
+                  <ArrowPathIcon className={`w-4 h-4 ${retransmitiendo ? "animate-spin" : ""}`} />
+                  {retransmitiendo ? "Transmitiendo..." : "Reintentar Transmisión"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

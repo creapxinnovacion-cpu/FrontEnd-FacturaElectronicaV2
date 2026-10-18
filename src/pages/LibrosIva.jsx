@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BookOpenIcon, ArrowDownTrayIcon, DocumentTextIcon, TableCellsIcon } from "@heroicons/react/24/outline";
 
 export default function LibrosIva() {
+  const [emisorId, _setEmisorId] = useState(1);
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
@@ -29,7 +30,8 @@ export default function LibrosIva() {
   ];
 
   const getDownloadUrl = (endpoint, formato, mes, anio) => {
-    return `http://localhost:8000/api/libros-iva/${endpoint}?mes=${mes}&anio=${anio}&formato=${formato}`;
+    const apiBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+    return `${apiBase}/libros-iva/${endpoint}?emisor_id=${emisorId}&mes=${mes}&anio=${anio}&formato=${formato}`;
   };
 
   return (

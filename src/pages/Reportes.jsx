@@ -15,6 +15,7 @@ export default function Reportes() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   
+  const [emisorId, _setEmisorId] = useState(1);
   const mesActual = new Date().getMonth() + 1;
   const anioActual = new Date().getFullYear();
   const [mes, setMes] = useState(mesActual);
@@ -23,21 +24,22 @@ export default function Reportes() {
   const cargarDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await reporteService.getDashboard(mes, anio);
+      const res = await reporteService.getDashboard(emisorId, mes, anio);
       setData(res.data);
     } catch (error) {
       console.error("Error cargando dashboard:", error);
     } finally {
       setLoading(false);
     }
-  }, [mes, anio]);
+  }, [emisorId, mes, anio]);
 
   useEffect(() => {
     cargarDashboard();
   }, [cargarDashboard]);
 
   const handleDescargar = (tipo) => {
-    window.location.href = `http://localhost:8000/api/libros-iva/${tipo}?mes=${mes}&anio=${anio}&formato=pdf`;
+    const apiBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+    window.open(`${apiBase}/libros-iva/${tipo}?emisor_id=${emisorId}&mes=${mes}&anio=${anio}&formato=pdf`, '_blank');
   };
 
   if (loading) {

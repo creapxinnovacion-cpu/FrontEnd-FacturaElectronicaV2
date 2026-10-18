@@ -46,6 +46,7 @@ export default function DteForm({ defaultTipoDte }) {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [emisionResultado, setEmisionResultado] = useState(null);
   const [emisionError, setEmisionError] = useState(null);
+  const [enviandoCorreoManual, setEnviandoCorreoManual] = useState(false);
 
   // --- MODAL ÍTEM DTE OFICIAL MH ---
   const [modalItemOpen, setModalItemOpen] = useState(false);
@@ -386,7 +387,7 @@ export default function DteForm({ defaultTipoDte }) {
       const payload = {
         emisor_id: 1,
         tipo_dte: tipoDteId,
-        enviar_correo: true, // Venta normal: enviar DTE (PDF y JSON) al correo del cliente
+        enviar_correo: false, // Desacoplado: Emisión ultrarrápida (2-3s). El correo se envía a demanda con el botón.
         guardar_cliente: guardarCliente,
         receptor_nombre: receptor.nombre || "Consumidor Final",
         receptor_nombre_comercial: receptor.nombreComercial || null,
@@ -424,7 +425,11 @@ export default function DteForm({ defaultTipoDte }) {
       const res = await batchService.create(payload);
       setEmisionResultado(res.data);
     } catch (err) {
-      setEmisionError(err.response?.data?.error || err.message || "Error al emitir DTE ante Ministerio de Hacienda");
+      let errorMsg = err.response?.data?.error || err.message || "Error al emitir DTE ante Ministerio de Hacienda";
+      if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
+        errorMsg = "Tiempo de espera agotado al comunicar con el servidor. Es muy probable que el Ministerio de Hacienda ya haya recibido y sellado el documento. Por favor revise el listado de documentos antes de intentar reemitir.";
+      }
+      setEmisionError(errorMsg);
     } finally {
       setLoadingEmitir(false);
     }
@@ -488,12 +493,12 @@ export default function DteForm({ defaultTipoDte }) {
                 {emisionResultado.correo_enviado ? (
                   <p className="text-xs text-emerald-200 mt-1 flex items-center gap-1.5 font-medium bg-emerald-900/60 py-0.5 px-2 rounded-md w-fit">
                     <EnvelopeIcon className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>DTE (PDF y JSON) enviado por correo a: <strong className="text-white font-mono">{receptor.correo}</strong></span>
+                    <span>DTE (PDF y JSON) enviado por correo a: <strong className="text-white font-mono">{emisionResultado.correo_destinatario || receptor.correo}</strong></span>
                   </p>
                 ) : receptor.correo ? (
                   <p className="text-xs text-emerald-300/80 mt-1 flex items-center gap-1.5">
                     <EnvelopeIcon className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Correo registrado: <span className="text-white font-mono">{receptor.correo}</span></span>
+                    <span>Correo del cliente: <span className="text-white font-mono">{receptor.correo}</span> (Listo para enviar)</span>
                   </p>
                 ) : null}
               </div>
@@ -519,20 +524,29 @@ export default function DteForm({ defaultTipoDte }) {
                   </a>
                   <button
                     type="button"
+                    disabled={enviandoCorreoManual}
                     onClick={async () => {
                       const correoDest = prompt("Confirmar o ingresar correo del cliente para enviar DTE (PDF y JSON):", receptor.correo || "");
                       if (!correoDest) return;
                       try {
+                        setEnviandoCorreoManual(true);
                         await batchService.enviarCorreo(emisionResultado.dte.id, correoDest);
+                        setEmisionResultado(prev => ({
+                          ...prev,
+                          correo_enviado: true,
+                          correo_destinatario: correoDest
+                        }));
                         alert(`DTE (PDF y JSON) enviado exitosamente a ${correoDest}`);
                       } catch (err) {
                         alert("Error al enviar correo: " + (err.response?.data?.error || err.message));
+                      } finally {
+                        setEnviandoCorreoManual(false);
                       }
                     }}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 cursor-pointer"
+                    className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 cursor-pointer"
                   >
-                    <EnvelopeIcon className="w-4 h-4" />
-                    ENVIAR CORREO
+                    <EnvelopeIcon className={`w-4 h-4 ${enviandoCorreoManual ? 'animate-pulse' : ''}`} />
+                    {enviandoCorreoManual ? "ENVIANDO CORREO..." : "ENVIAR CORREO"}
                   </button>
                 </>
               )}
