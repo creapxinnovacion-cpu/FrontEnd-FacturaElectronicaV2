@@ -7,13 +7,16 @@ import CreditoFiscal from "./pages/CreditoFiscal";
 import NotaCredito from "./pages/NotaCredito";
 import NotaDebito from "./pages/NotaDebito";
 import FacturaSujetoExcluido from "./pages/FacturaSujetoExcluido";
+import FacturaExportacion from "./pages/FacturaExportacion";
 import Reportes from "./pages/Reportes";
 import Stock from "./pages/Stock";
 import LibrosIva from "./pages/LibrosIva";
 import Anulaciones from "./pages/Anulaciones";
+import Retornos from "./pages/Retornos";
 import EstadosEmision from "./pages/EstadosEmision";
 import EmisorConfig from "./pages/EmisorConfig";
 import DteEmitidos from "./pages/DteEmitidos";
+import Compras from "./pages/compras";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 
 export default function App() {
@@ -36,13 +39,18 @@ export default function App() {
         <Route path="/nota-credito" element={<NotaCredito />} />
         <Route path="/nota-debito" element={<NotaDebito />} />
         <Route path="/sujeto-excluido" element={<FacturaSujetoExcluido />} />
+        <Route path="/exportacion" element={<FacturaExportacion />} />
+        <Route path="/factura-exportacion" element={<FacturaExportacion />} />
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/stock" element={<Stock />} />
         <Route path="/libros-iva" element={<LibrosIva />} />
         <Route path="/anulaciones" element={<Anulaciones />} />
+        <Route path="/retornos" element={<Retornos />} />
         <Route path="/estados-emision" element={<EstadosEmision />} />
         <Route path="/dte-emitidos" element={<DteEmitidos />} />
         <Route path="/emisorConfig" element={<EmisorConfig />} />
+        {/* compras */}
+        <Route path="/compras" element={<Compras />} />
         {/* 404 */}
         <Route
           path="*"

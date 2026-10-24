@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { DocumentTextIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { Link } from "react-router-dom";
+import { DocumentTextIcon, EyeIcon, ArrowUturnLeftIcon } from "@heroicons/react/24/outline";
 import { dteService } from "@/services/api/dte.service";
 
 export default function DteEmitidos() {
@@ -72,6 +73,15 @@ export default function DteEmitidos() {
                   <a href={`http://localhost:8000/api/dtes/${dte.id}/json`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-900 inline-flex items-center ml-3">
                     <DocumentTextIcon className="w-5 h-5 mr-1" /> JSON
                   </a>
+                  {['01', '1', '11', '14'].includes(String(dte.tipo_dte)) && dte.estado_actual === 'ACEPTADO' && (
+                    <Link
+                      to="/retornos"
+                      className="text-emerald-600 hover:text-emerald-800 font-semibold inline-flex items-center ml-3"
+                      title="Emitir Evento de Retorno de mercadería"
+                    >
+                      <ArrowUturnLeftIcon className="w-4 h-4 mr-1" /> Retorno
+                    </Link>
+                  )}
                 </td>
               </tr>
             ))}

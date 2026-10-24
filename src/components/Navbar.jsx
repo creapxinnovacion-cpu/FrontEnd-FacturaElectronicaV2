@@ -12,7 +12,9 @@ export default function Navbar() {
     { name: "Comprobante de Crédito Fiscal", path: "/credito-fiscal", code: "DTE 03" },
     { name: "Nota de Crédito", path: "/nota-credito", code: "DTE 05" },
     { name: "Nota de Débito", path: "/nota-debito", code: "DTE 06" },
+    { name: "Factura de Exportación", path: "/exportacion", code: "DTE 11" },
     { name: "Factura de Sujeto Excluido", path: "/sujeto-excluido", code: "DTE 14" },
+    { name: "Eventos de Retorno", path: "/retornos", code: "DTE 18" },
   ];
 
   const menu = [

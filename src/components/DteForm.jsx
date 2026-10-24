@@ -16,6 +16,9 @@ import { CAT_GeneracionDocs } from "../utils/catalogos/catGeneracionDocumentos";
 import { CAT_UNIDAD_MEDIDA } from "../utils/catalogos/catUnidadMedida";
 import { CAT_CONDICION_PAGO } from "../utils/catalogos/catCondicionPago";
 import { CAT_FORMA_PAGOS } from "../utils/catalogos/catFormaPagos";
+import { CAT_PAIS } from "../utils/catalogos/CatPais";
+import { CAT_INCOTERMS } from "../utils/catalogos/CatIncoterms";
+import { CAT_TIPO_ITEM_EXPOR } from "../utils/catalogos/CatTipoItemExpor";
 import {
   sanitizarSoloNumeros,
   prevenirNoNumerico,
@@ -39,6 +42,7 @@ import {
   EnvelopeIcon,
   MagnifyingGlassIcon,
   BookmarkSquareIcon,
+  GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import ModalItemDte from "./ModalItemDte";
 
@@ -87,7 +91,7 @@ export default function DteForm({ defaultTipoDte }) {
   const [receptor, setReceptor] = useState({
     tipoPersona: "1", // CAT-029: 1: Persona Natural, 2: Persona Jurídica
     domicilioFiscal: "1", // CAT-018: 1: Domiciliado, 2: No Domiciliado
-    tipoDoc: "36", // CAT-022: 36 (NIT), 13 (DUI), etc.
+    tipoDoc: "36", // CAT-022: 36 (NIT), 13 (DUI), 37 (Otro), etc.
     numDoc: "",
     nombre: "",
     nrc: "",
@@ -99,7 +103,21 @@ export default function DteForm({ defaultTipoDte }) {
     distrito: "01",
     complemento: "",
     correo: "",
-    telefono: ""
+    telefono: "",
+    codPais: "GT", // CAT-020: Guatemala por defecto (ISO 3166-1 alpha-2)
+    nombrePais: "GUATEMALA",
+  });
+
+  // --- PARÁMETROS DE EXPORTACIÓN (DTE-11) ---
+  const [exportacion, setExportacion] = useState({
+    tipoItemExpor: 1, // CAT-027: 1: Bienes, 2: Servicios, 3: Ambos
+    recintoFiscal: "04", // CAT-026: 04 (Terrestres Las Chinamas)
+    tipoRegimen: "EX-1", // CAT-033: Exportación Definitiva
+    regimen: "1000.000", // CAT-028: Exportación Definitiva (Régimen Común)
+    codIncoterms: "02", // CAT-030: FCA
+    descIncoterms: "FCA-Libre transportista",
+    seguro: 0,
+    flete: 0,
   });
 
   // --- BÚSQUEDA Y VINCULACIÓN DE CLIENTES ---
@@ -229,8 +247,8 @@ export default function DteForm({ defaultTipoDte }) {
   };
 
   const [pago, setPago] = useState({
-    condicion: "Contado",
-    metodo: "Billetes y monedas",
+    condicion: "1",
+    metodo: "01",
     monto: 0,
     pagos: []
   });
@@ -287,11 +305,21 @@ export default function DteForm({ defaultTipoDte }) {
   };
 
   const handleGuardarItemModal = (itemGuardado) => {
+    const itemNormalizado = {
+      ...itemGuardado,
+      ventas: typeof itemGuardado.ventas === 'number'
+        ? itemGuardado.ventas
+        : (itemGuardado.cantidad * (itemGuardado.precio || 0)) - (itemGuardado.descuento || 0),
+      total: typeof itemGuardado.total === 'number'
+        ? itemGuardado.total
+        : (itemGuardado.cantidad * (itemGuardado.precio || 0)) - (itemGuardado.descuento || 0),
+    };
+
     if (itemParaEditar) {
-      setItems(items.map(it => it.id === itemGuardado.id ? { ...it, ...itemGuardado } : it));
+      setItems(items.map(it => it.id === itemNormalizado.id ? { ...it, ...itemNormalizado } : it));
       setItemParaEditar(null);
     } else {
-      setItems([...items, itemGuardado]);
+      setItems([...items, itemNormalizado]);
     }
   };
 
@@ -323,6 +351,7 @@ export default function DteForm({ defaultTipoDte }) {
 
   const isNota = emisor.tipoDte === "Nota de Crédito" || emisor.tipoDte === "Nota de Débito";
   const isSujetoExcluido = emisor.tipoDte === "Factura de Sujeto Excluido";
+  const isExportacion = emisor.tipoDte === "Factura de Exportación" || emisor.tipoDte?.toLowerCase().includes("exportación");
   const isDonacion = emisor.tipoDte === "Comprobante de Donación" || emisor.tipoDte?.toLowerCase().includes("donación");
 
   const totalNoSujeto = items.reduce((acc, item) => acc + (item.subTotalNoSujeto || 0), 0);
@@ -338,7 +367,7 @@ export default function DteForm({ defaultTipoDte }) {
   const totalDescuento = items.reduce((acc, item) => acc + (item.descuento || 0), 0);
 
   // Subtotal general de los detalles de la operación
-  const subTotalGeral = isSujetoExcluido ? (totalOperaciones - totalDescuento) : totalGravado;
+  const subTotalGeral = (isSujetoExcluido || isExportacion) ? (totalOperaciones - totalDescuento) : totalGravado;
 
   // Efecto para calcular retención de renta automáticamente si es Sujeto Excluido
   useEffect(() => {
@@ -356,6 +385,8 @@ export default function DteForm({ defaultTipoDte }) {
     let montoCalculado = 0;
     if (isSujetoExcluido) {
       montoCalculado = subTotalGeral - retencionRenta;
+    } else if (isExportacion) {
+      montoCalculado = subTotalGeral + (parseFloat(exportacion.seguro) || 0) + (parseFloat(exportacion.flete) || 0);
     } else {
       montoCalculado = totalGravado + ivaCalculado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido;
     }
@@ -363,11 +394,13 @@ export default function DteForm({ defaultTipoDte }) {
       ...prev,
       monto: montoCalculado > 0 ? parseFloat(montoCalculado.toFixed(2)) : 0,
     }));
-  }, [subTotalGeral, retencionRenta, totalGravado, ivaCalculado, totalNoSujeto, totalExento, ivaRetenido, ivaPercibido, isSujetoExcluido]);
+  }, [subTotalGeral, retencionRenta, totalGravado, ivaCalculado, totalNoSujeto, totalExento, ivaRetenido, ivaPercibido, isSujetoExcluido, isExportacion, exportacion.seguro, exportacion.flete]);
 
   const totalPagar = isSujetoExcluido
     ? (subTotalGeral - retencionRenta)
-    : (totalGravado + ivaCalculado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
+    : isExportacion
+      ? (subTotalGeral + (parseFloat(exportacion.seguro) || 0) + (parseFloat(exportacion.flete) || 0))
+      : (totalGravado + ivaCalculado + totalNoSujeto + totalExento - ivaRetenido + ivaPercibido);
 
   const handleEmitirDte = async () => {
     setLoadingEmitir(true);
@@ -384,6 +417,53 @@ export default function DteForm({ defaultTipoDte }) {
       else if (t.includes("Exportación")) tipoDteId = 9;
       else if (t.includes("Donación")) tipoDteId = 11;
 
+      // VALIDACIÓN ESTRICTA SUJETO EXCLUIDO (DTE-14)
+      if (isSujetoExcluido) {
+        if (!receptor.nombre || !receptor.nombre.trim()) {
+          setLoadingEmitir(false);
+          setEmisionError("El Nombre del Sujeto Excluido es obligatorio.");
+          return;
+        }
+        const docLimpio = sanitizarSoloNumeros(receptor.numDoc || "", 14);
+        if (!docLimpio) {
+          setLoadingEmitir(false);
+          setEmisionError("Para Factura de Sujeto Excluido, el Número de Documento (DUI o NIT) es OBLIGATORIO por normativa del Ministerio de Hacienda.");
+          return;
+        }
+        if (receptor.tipoDoc === "13" || receptor.tipoDoc === "DUI") {
+          if (docLimpio.length !== 9) {
+            setLoadingEmitir(false);
+            setEmisionError(`El DUI del Sujeto Excluido debe contener exactamente 9 dígitos numéricos (actualmente tiene ${docLimpio.length}).`);
+            return;
+          }
+        } else if (receptor.tipoDoc === "36" || receptor.tipoDoc === "NIT") {
+          if (docLimpio.length !== 14 && docLimpio.length !== 9) {
+            setLoadingEmitir(false);
+            setEmisionError(`El NIT del Sujeto Excluido debe contener 14 dígitos o 9 dígitos si está homologado con DUI (actualmente tiene ${docLimpio.length}).`);
+            return;
+          }
+        }
+      }
+
+      // VALIDACIÓN ESTRICTA FACTURA DE EXPORTACIÓN (DTE-11)
+      if (isExportacion) {
+        if (!receptor.nombre || !receptor.nombre.trim()) {
+          setLoadingEmitir(false);
+          setEmisionError("El Nombre o Razón Social del receptor en el extranjero es obligatorio.");
+          return;
+        }
+        if (!exportacion.regimen || !exportacion.regimen.trim()) {
+          setLoadingEmitir(false);
+          setEmisionError("El Régimen de Exportación es obligatorio (ej. EX-1.1000.000).");
+          return;
+        }
+        if (items.length === 0) {
+          setLoadingEmitir(false);
+          setEmisionError("Debe agregar al menos un ítem o producto para la exportación.");
+          return;
+        }
+      }
+
       const payload = {
         emisor_id: 1,
         tipo_dte: tipoDteId,
@@ -391,20 +471,32 @@ export default function DteForm({ defaultTipoDte }) {
         guardar_cliente: guardarCliente,
         receptor_nombre: receptor.nombre || "Consumidor Final",
         receptor_nombre_comercial: receptor.nombreComercial || null,
-        receptor_documento: receptor.numDoc || null,
-        receptor_tipo_documento: receptor.tipoDoc || "36",
+        receptor_documento: receptor.numDoc || (isExportacion ? "EXT-99999999" : null),
+        receptor_tipo_documento: isExportacion ? (receptor.tipoDoc && receptor.tipoDoc !== '36' ? receptor.tipoDoc : '37') : (receptor.tipoDoc || "36"),
         receptor_tipo_persona: receptor.tipoPersona || "1",
         receptor_domicilio_fiscal: receptor.domicilioFiscal || "1",
         receptor_nrc: receptor.nrc || null,
         receptor_cod_actividad: receptor.codActividad || null,
-        receptor_desc_actividad: receptor.actividadEconomica || null,
+        receptor_desc_actividad: receptor.actividadEconomica || (isExportacion ? "Otros" : null),
         receptor_correo: receptor.correo || null,
         receptor_telefono: receptor.telefono || null,
-        receptor_direccion: receptor.complemento || "San Salvador",
-        receptor_departamento: receptor.departamento || "06",
-        receptor_municipio: receptor.municipio || "23",
-        receptor_distrito: receptor.distrito || "01",
-        receptor_complemento: receptor.complemento || "Sin complemento",
+        receptor_direccion: isExportacion ? (receptor.complemento || "Extranjero") : (receptor.complemento || "San Salvador"),
+        receptor_departamento: isExportacion ? null : (receptor.departamento || "06"),
+        receptor_municipio: isExportacion ? null : (receptor.municipio || "23"),
+        receptor_distrito: isExportacion ? null : (receptor.distrito || "01"),
+        receptor_complemento: receptor.complemento || (isExportacion ? "Extranjero" : "Sin complemento"),
+        receptor_cod_pais: isExportacion ? (receptor.codPais || "GT") : null,
+        receptor_nombre_pais: isExportacion ? (receptor.nombrePais || "GUATEMALA") : null,
+        exportacion: isExportacion ? {
+          tipo_item_expor: parseInt(exportacion.tipoItemExpor) || 1,
+          recinto_fiscal: exportacion.recintoFiscal || "04",
+          tipo_regimen: exportacion.tipoRegimen || "EX-1",
+          regimen: exportacion.regimen ? exportacion.regimen.replace(/^EX-\d\./i, '') : "1000.000",
+          cod_incoterms: exportacion.codIncoterms || "02",
+          desc_incoterms: exportacion.descIncoterms || "FCA-Libre transportista",
+          seguro: parseFloat(exportacion.seguro) || 0,
+          flete: parseFloat(exportacion.flete) || 0,
+        } : null,
         items: items.map(it => ({
           producto_id: it.producto_id || null,
           codigo: it.codigo || null,
@@ -425,7 +517,7 @@ export default function DteForm({ defaultTipoDte }) {
       const res = await batchService.create(payload);
       setEmisionResultado(res.data);
     } catch (err) {
-      let errorMsg = err.response?.data?.error || err.message || "Error al emitir DTE ante Ministerio de Hacienda";
+      let errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || "Error al emitir DTE ante Ministerio de Hacienda";
       if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
         errorMsg = "Tiempo de espera agotado al comunicar con el servidor. Es muy probable que el Ministerio de Hacienda ya haya recibido y sellado el documento. Por favor revise el listado de documentos antes de intentar reemitir.";
       }
@@ -743,7 +835,9 @@ export default function DteForm({ defaultTipoDte }) {
             <div className="bg-gray-50/50 px-8 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UserIcon className="w-5 h-5 text-black" />
-                <h3 className="font-bold text-black">{isSujetoExcluido ? 'Sujeto Excluido' : 'Información del Receptor'}</h3>
+                <h3 className="font-bold text-black">
+                  {isExportacion ? 'Receptor en el Extranjero (Importador)' : isSujetoExcluido ? 'Sujeto Excluido' : 'Información del Receptor'}
+                </h3>
               </div>
               <span className="text-[11px] text-gray-400 font-medium">Autocompletado & Agenda</span>
             </div>
@@ -812,18 +906,25 @@ export default function DteForm({ defaultTipoDte }) {
               {/* BARRA DE ACCIÓN Y CHECKBOX DE GUARDADO */}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 {clienteSeleccionado ? (
-                  <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-medium">
-                    <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
-                    <span>
-                      Cliente vinculado: <strong>{clienteSeleccionado.nombre}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleLimpiarCliente}
-                      className="text-rose-600 hover:underline ml-1 font-bold cursor-pointer"
-                    >
-                      Desvincular
-                    </button>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-medium">
+                      <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
+                      <span>
+                        Cliente vinculado: <strong>{clienteSeleccionado.nombre}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleLimpiarCliente}
+                        className="text-rose-600 hover:underline ml-1 font-bold cursor-pointer"
+                      >
+                        Desvincular
+                      </button>
+                    </div>
+                    {isSujetoExcluido && !clienteSeleccionado.dui && !clienteSeleccionado.nit && (
+                      <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg font-semibold">
+                        ⚠️ Ficha sin DUI/NIT. Ingréselo en el campo abajo para emitir.
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-[11px] text-gray-400">
@@ -917,6 +1018,11 @@ export default function DteForm({ defaultTipoDte }) {
                           {receptor.numDoc.length === 14 ? "✓ NIT 14 dígitos" : receptor.numDoc.length === 9 ? "✓ Homologado 9 dígitos" : `${receptor.numDoc.length}/14 dígitos`}
                         </span>
                       )}
+                      {isSujetoExcluido && !receptor.numDoc && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-300 animate-pulse">
+                          * Obligatorio MH
+                        </span>
+                      )}
                     </div>
                     <input
                       type="text"
@@ -944,7 +1050,11 @@ export default function DteForm({ defaultTipoDte }) {
                             ? "Solo números "
                             : "Número de documento"
                       }
-                      className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      className={`w-full bg-[#777778] text-white placeholder-gray-300 border rounded-2xl px-4 py-2.5 text-sm outline-none transition-all ${
+                        isSujetoExcluido && !receptor.numDoc
+                          ? "border-amber-400 ring-2 ring-amber-400/30"
+                          : "border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                       value={receptor.numDoc}
                       onKeyDown={(e) => {
                         if (
@@ -987,38 +1097,40 @@ export default function DteForm({ defaultTipoDte }) {
                 </div>
                 {!isSujetoExcluido && (
                   <>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
-                        {receptor.nrc && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${receptor.nrc.length >= 1 && receptor.nrc.length <= 8
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                            }`}>
-                            {`✓ NRC: ${receptor.nrc.length} dígitos`}
-                          </span>
-                        )}
+                    {!isExportacion && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-semibold text-gray-500 ml-1">NRC</label>
+                          {receptor.nrc && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${receptor.nrc.length >= 1 && receptor.nrc.length <= 8
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                              }`}>
+                              {`✓ NRC: ${receptor.nrc.length} dígitos`}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={10}
+                          placeholder="Solo números (máx. 10 dígitos)"
+                          className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                          value={receptor.nrc}
+                          onKeyDown={prevenirNoNumerico}
+                          onChange={(e) => {
+                            // Solo números (0-9), máx 10 dígitos. Elimina instantáneamente letras, símbolos y patrones SQL
+                            const val = sanitizarSoloNumeros(e.target.value, 10);
+                            setReceptor({ ...receptor, nrc: val });
+                          }}
+                        />
+                        <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
+                          <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
+                          NRC: Solo dígitos (0-9).
+                        </p>
                       </div>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={10}
-                        placeholder="Solo números (máx. 10 dígitos)"
-                        className="w-full bg-[#777778] text-white placeholder-gray-300 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                        value={receptor.nrc}
-                        onKeyDown={prevenirNoNumerico}
-                        onChange={(e) => {
-                          // Solo números (0-9), máx 10 dígitos. Elimina instantáneamente letras, símbolos y patrones SQL
-                          const val = sanitizarSoloNumeros(e.target.value, 10);
-                          setReceptor({ ...receptor, nrc: val });
-                        }}
-                      />
-                      <p className="text-[10px] text-gray-400 pl-1 flex items-center gap-1">
-                        <ShieldCheckIcon className="w-3 h-3 text-emerald-500 inline-block" />
-                        NRC: Solo dígitos (0-9).
-                      </p>
-                    </div>
+                    )}
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-500 ml-1">Nombre Comercial</label>
                       <input
@@ -1084,19 +1196,45 @@ export default function DteForm({ defaultTipoDte }) {
                 </div>
               </div>
               <div className="space-y-4 text-xs font-semibold text-gray-500 ">
-                <SelectorUbicacion
-                  departamento={receptor.departamento}
-                  municipio={receptor.municipio}
-                  distrito={receptor.distrito}
-                  gridCols="grid-cols-1 md:grid-cols-2"
-                  onChange={({ departamento, municipio, distrito }) => {
-                    setReceptor({ ...receptor, departamento, municipio, distrito });
-                  }}
-                />
+                {isExportacion ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500 ml-1">País de Destino (CAT-020)</label>
+                    <select
+                      className="w-full bg-[#777778] text-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none"
+                      value={receptor.codPais}
+                      onChange={(e) => {
+                        const sel = CAT_PAIS.find(p => p.codigo === e.target.value);
+                        setReceptor({
+                          ...receptor,
+                          codPais: e.target.value,
+                          nombrePais: sel ? (sel.descripcion || sel.nombre) : ''
+                        });
+                      }}
+                    >
+                      {CAT_PAIS.map(p => (
+                        <option key={p.codigo} value={p.codigo} className="text-gray-900 bg-white">
+                          {(p.descripcion || p.nombre)} ({p.codigo})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <SelectorUbicacion
+                    departamento={receptor.departamento}
+                    municipio={receptor.municipio}
+                    distrito={receptor.distrito}
+                    gridCols="grid-cols-1 md:grid-cols-2"
+                    onChange={({ departamento, municipio, distrito }) => {
+                      setReceptor({ ...receptor, departamento, municipio, distrito });
+                    }}
+                  />
+                )}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-500 ml-1">Dirección Complemento</label>
+                  <label className="text-xs font-semibold text-gray-500 ml-1">
+                    {isExportacion ? 'Dirección en el País de Destino (Complemento)' : 'Dirección Complemento'}
+                  </label>
                   <textarea
-                    placeholder="Digite el complemento de la dirección"
+                    placeholder={isExportacion ? "Ej. Las Pilas, Guatemala" : "Digite el complemento de la dirección"}
                     rows="2"
                     className="w-full  bg-[#777778] text-white  border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
                     value={receptor.complemento}
@@ -1128,6 +1266,122 @@ export default function DteForm({ defaultTipoDte }) {
               </div>
             </div>
           </section>
+
+          {/* ========================================================================= */}
+          {/* SECCIÓN 4.1: PARÁMETROS DE EXPORTACIÓN & ADUANA (DTE-11)                   */}
+          {/* ========================================================================= */}
+          {isExportacion && (
+            <section className="bg-white rounded-3xl shadow-sm border border-blue-100 overflow-hidden">
+              <div className="bg-blue-50/50 px-8 py-4 border-b border-blue-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <GlobeAltIcon className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-gray-800">Parámetros de Comercio Exterior & Aduana (DTE-11)</h3>
+                </div>
+                <span className="text-[11px] bg-blue-100 text-blue-800 font-bold px-2.5 py-1 rounded-full">
+                  Exportación
+                </span>
+              </div>
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Tipo de Item Exportación */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 ml-1">Tipo de Bien / Exportación (CAT-027)</label>
+                    <select
+                      className="w-full bg-slate-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none text-gray-800 font-medium"
+                      value={exportacion.tipoItemExpor}
+                      onChange={(e) => setExportacion({ ...exportacion, tipoItemExpor: parseInt(e.target.value) || 1 })}
+                    >
+                      {CAT_TIPO_ITEM_EXPOR.map(t => (
+                        <option key={t.codigo} value={t.codigo}>
+                          {t.codigo} - {t.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Recinto Fiscal */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 ml-1">Recinto Fiscal / Aduana (CAT-026)</label>
+                    <select
+                      className="w-full bg-slate-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none text-gray-800 font-medium"
+                      value={exportacion.recintoFiscal}
+                      onChange={(e) => setExportacion({ ...exportacion, recintoFiscal: e.target.value })}
+                    >
+                      {CAT_RECINTO_FISCAL.map(r => (
+                        <option key={r.codigo} value={r.codigo}>
+                          {r.codigo} - {r.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Régimen Aduanero */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 ml-1">Régimen Aduanero (CAT-028)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none text-gray-800 font-medium"
+                      placeholder="Ej. 1000.000"
+                      value={exportacion.regimen}
+                      onChange={(e) => setExportacion({ ...exportacion, regimen: e.target.value })}
+                    />
+                    <p className="text-[10px] text-gray-400 pl-1">Código MH CAT-028: 1000.000 (Exportación Definitiva)</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2 border-t border-gray-100">
+                  {/* Incoterm */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 ml-1">Término de Entrega / Incoterm (CAT-030)</label>
+                    <select
+                      className="w-full bg-slate-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none text-gray-800 font-medium"
+                      value={exportacion.codIncoterms}
+                      onChange={(e) => {
+                        const sel = CAT_INCOTERMS.find(i => i.codigo === e.target.value);
+                        setExportacion({
+                          ...exportacion,
+                          codIncoterms: e.target.value,
+                          descIncoterms: sel ? sel.descripcion : ''
+                        });
+                      }}
+                    >
+                      {CAT_INCOTERMS.map(i => (
+                        <option key={i.codigo} value={i.codigo}>
+                          {i.codigo} - {i.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Seguro */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 ml-1">Monto Seguro Internacional ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-slate-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none text-gray-800 font-medium"
+                      value={exportacion.seguro}
+                      onChange={(e) => setExportacion({ ...exportacion, seguro: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+
+                  {/* Flete */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-600 ml-1">Monto Flete Internacional ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-slate-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none text-gray-800 font-medium"
+                      value={exportacion.flete}
+                      onChange={(e) => setExportacion({ ...exportacion, flete: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ========================================================================= */}
           {/* SECCIÓN 5: DETALLE DE LA OPERACIÓN (PRODUCTOS, SERVICIOS Y SUBTOTALES)    */}
@@ -1166,6 +1420,8 @@ export default function DteForm({ defaultTipoDte }) {
                           <th className="py-4 px-4 font-bold w-32 text-center text-[8px]">Descuento, Bonificación, Rebajas por ítem</th>
                           <th className="py-4 px-4 font-bold w-32 text-center">Ventas</th>
                         </>
+                      ) : isExportacion ? (
+                        <th className="py-4 px-4 font-bold w-32 text-right">Ventas afectas $</th>
                       ) : (
                         <th className="py-4 px-4 font-bold w-32">Sub Total</th>
                       )
@@ -1307,7 +1563,9 @@ export default function DteForm({ defaultTipoDte }) {
                                 onChange={(e) => updateItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
                               />
                             </td>
-                            <td className="py-4 px-4 text-sm font-bold text-gray-900 text-right">$ {item.ventas.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-4 px-4 text-sm font-bold text-gray-900 text-right">
+                              $ {(typeof item.ventas === 'number' ? item.ventas : ((item.cantidad * item.precio) - (item.descuento || 0))).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </td>
                           </>
                         ) : (
                           <td className="py-4 px-4 text-sm font-bold text-gray-900">$ {item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1357,7 +1615,7 @@ export default function DteForm({ defaultTipoDte }) {
                     onChange={(e) => setPago({ ...pago, condicion: e.target.value })}
                   >
                     {CAT_CONDICION_PAGO.map((cp) => (
-                      <option key={cp.codigo} value={cp.descripcion} className="text-gray-900 bg-white">
+                      <option key={cp.codigo} value={cp.codigo} className="text-gray-900 bg-white">
                         {cp.descripcion}
                       </option>
                     ))}
@@ -1371,7 +1629,7 @@ export default function DteForm({ defaultTipoDte }) {
                     onChange={(e) => setPago({ ...pago, metodo: e.target.value })}
                   >
                     {CAT_FORMA_PAGOS.map((fp) => (
-                      <option key={fp.codigo} value={fp.descripcion} className="text-gray-900 bg-white">
+                      <option key={fp.codigo} value={fp.codigo} className="text-gray-900 bg-white">
                         {fp.descripcion}
                       </option>
                     ))}
@@ -1573,10 +1831,17 @@ export default function DteForm({ defaultTipoDte }) {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm font-medium">
-                    {isSujetoExcluido ? 'Total de Operaciones' : (isNota ? 'Total Gravadas' : 'Total Gravado')}
+                    {isExportacion ? 'Sumas de ventas afectas' : isSujetoExcluido ? 'Total de Operaciones' : (isNota ? 'Total Gravadas' : 'Total Gravado')}
                   </span>
-                  <span className="text-lg font-semibold">$ {isSujetoExcluido ? totalOperaciones.toLocaleString('en-US', { minimumFractionDigits: 2 }) : totalGravado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-lg font-semibold">$ {(isExportacion ? totalOperaciones : isSujetoExcluido ? totalOperaciones : totalGravado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
+
+                {isExportacion && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 text-xs text-emerald-300 flex items-center justify-between">
+                    <span>Tasa 0% IVA (Tributo C3)</span>
+                    <span className="font-bold">$ 0.00</span>
+                  </div>
+                )}
 
                 {isSujetoExcluido && (
                   <>
@@ -1599,7 +1864,7 @@ export default function DteForm({ defaultTipoDte }) {
                   </div>
                 )}
 
-                {!isSujetoExcluido && (
+                {!isSujetoExcluido && !isExportacion && (
                   <>
                     <div className="flex justify-between items-center text-red-400">
                       <span className="text-sm font-medium">IVA Retenido</span>
@@ -1629,9 +1894,24 @@ export default function DteForm({ defaultTipoDte }) {
                 )}
 
                 <div className="flex justify-between items-center border-t border-white/5 pt-4">
-                  <span className="text-gray-400 text-sm font-medium">Sub Total</span>
+                  <span className="text-gray-400 text-sm font-medium">
+                    {isExportacion ? 'Sumatoria de ventas' : 'Sub Total'}
+                  </span>
                   <span className="text-lg font-semibold">$ {subTotalGeral.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
+
+                {isExportacion && (
+                  <>
+                    <div className="flex justify-between items-center text-blue-300">
+                      <span className="text-sm font-medium">Seguro Internacional</span>
+                      <span className="text-lg font-semibold">$ {(exportacion.seguro || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-blue-300">
+                      <span className="text-sm font-medium">Flete Internacional</span>
+                      <span className="text-lg font-semibold">$ {(exportacion.flete || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </>
+                )}
 
                 {isSujetoExcluido && (
                   <div className="flex justify-between items-center text-orange-400">

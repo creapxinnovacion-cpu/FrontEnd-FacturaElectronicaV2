@@ -7,12 +7,14 @@ import {
   DocumentTextIcon,
   ShieldCheckIcon,
   PrinterIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  DocumentMagnifyingGlassIcon
 } from "@heroicons/react/24/outline";
 import { batchService } from "../services/api/batch.service";
 import { eventoService } from "../services/api/evento.service";
 import { CAT_TIPO_INVALIDACION } from "../utils/catalogos/catInvalidacion";
 import { CAT_TIPO_DOCUMENTO_IDENTIFICACION } from "../utils/catalogos/CatTipoDocumentoIdentificacion";
+import ModalGraficaInvalidacion from "../components/ModalGraficaInvalidacion";
 
 export default function Anulaciones() {
   const [dtes, setDtes] = useState([]);
@@ -21,7 +23,11 @@ export default function Anulaciones() {
   const [selectedDte, setSelectedDte] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [alerta, setAlerta] = useState({ tipo: "", mensaje: "" });
-  const [vistaImpresion, setVistaImpresion] = useState(null);
+
+  // Estados para el Modal de Representación Gráfica Oficial de Invalidación
+  const [modalGraficaOpen, setModalGraficaOpen] = useState(false);
+  const [invalidacionSeleccionada, setInvalidacionSeleccionada] = useState(null);
+  const [cargandoGraficaId, setCargandoGraficaId] = useState(null);
 
   // Formulario del Evento de Invalidación
   const [formData, setFormData] = useState({
@@ -88,13 +94,58 @@ export default function Anulaciones() {
         mensaje: `Documento invalidado con éxito. Evento UUID: ${res.data.invalidacion?.codigo_generacion}`,
       });
       setModalOpen(false);
-      setVistaImpresion(res.data.invalidacion);
+
+      // Abrir de inmediato el modal de la representación gráfica oficial
+      setInvalidacionSeleccionada({
+        ...res.data.invalidacion,
+        dte: res.data.dte || selectedDte,
+      });
+      setModalGraficaOpen(true);
       cargarDtes();
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message || "Error al procesar la invalidación.";
       setAlerta({ tipo: "error", mensaje: errorMsg });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Abrir la representación gráfica oficial de un DTE ya invalidado
+  const abrirGraficaInvalidacion = async (dte) => {
+    if (dte.invalidacion) {
+      setInvalidacionSeleccionada({
+        ...dte.invalidacion,
+        dte: dte,
+      });
+      setModalGraficaOpen(true);
+      return;
+    }
+
+    setCargandoGraficaId(dte.id);
+    try {
+      const res = await eventoService.getInvalidacionPorDte(dte.id);
+      const inv = res.data.invalidacion || res.data;
+      setInvalidacionSeleccionada({
+        ...inv,
+        dte: inv.dte || dte,
+      });
+      setModalGraficaOpen(true);
+    } catch (err) {
+      console.error("Error al obtener datos de invalidación:", err);
+      // Fallback con datos directos del DTE
+      setInvalidacionSeleccionada({
+        dte: dte,
+        codigo_generacion: dte.codigo_generacion,
+        motivo: "Documento Anulado",
+        responsable_nombre: dte.emisor?.nombre,
+        responsable_doc_num: dte.emisor?.nit,
+        solicita_nombre: dte.receptor_nombre,
+        solicita_doc_num: dte.receptor_documento,
+        sello_recepcion: dte.sello_recepcion,
+      });
+      setModalGraficaOpen(true);
+    } finally {
+      setCargandoGraficaId(null);
     }
   };
 
@@ -239,7 +290,22 @@ export default function Anulaciones() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {esAnulado ? (
-                          <span className="text-xs font-semibold text-gray-400 italic">Ya invalidado</span>
+                          <div className="flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() => abrirGraficaInvalidacion(item)}
+                              disabled={cargandoGraficaId === item.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition shadow-sm hover:shadow active:scale-95 disabled:opacity-50"
+                              title="Ver Representación Gráfica del Evento de Invalidación"
+                            >
+                              {cargandoGraficaId === item.id ? (
+                                <ArrowPathIcon className="w-4 h-4 animate-spin text-blue-600" />
+                              ) : (
+                                <DocumentMagnifyingGlassIcon className="w-4 h-4 text-blue-600" />
+                              )}
+                              <span>Ver Anulación</span>
+                            </button>
+                          </div>
                         ) : (
                           <button
                             onClick={() => abrirModalInvalidacion(item)}
@@ -426,35 +492,12 @@ export default function Anulaciones() {
         </div>
       )}
 
-      {/* REPRESENTACIÓN GRÁFICA DEL EVENTO DE INVALIDACIÓN (IMPRESIÓN) */}
-      {vistaImpresion && (
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-emerald-200 space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <ShieldCheckIcon className="w-8 h-8 text-emerald-600" />
-              <div>
-                <h4 className="font-bold text-gray-800">Representación Gráfica del Evento de Invalidación</h4>
-                <p className="text-xs text-gray-500">Documento de entrega obligatoria al receptor según Normativa V2.0</p>
-              </div>
-            </div>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20"
-            >
-              <PrinterIcon className="w-4 h-4" /> Imprimir Comprobante
-            </button>
-          </div>
-
-          <div className="p-6 bg-gray-50 rounded-2xl border border-gray-200 text-xs font-mono space-y-2">
-            <p><strong>CÓDIGO GENERACIÓN EVENTO:</strong> {vistaImpresion.codigo_generacion}</p>
-            <p><strong>SELLO RECEPCIÓN MH:</strong> {vistaImpresion.sello_recepcion || "OTORGADO POR DGII"}</p>
-            <p><strong>FECHA PROCESO:</strong> {new Date().toLocaleString('es-SV')}</p>
-            <p><strong>MOTIVO:</strong> {vistaImpresion.motivo}</p>
-            <p><strong>RESPONSABLE:</strong> {vistaImpresion.responsable_nombre} ({vistaImpresion.responsable_doc_num})</p>
-            <p><strong>SOLICITANTE:</strong> {vistaImpresion.solicita_nombre} ({vistaImpresion.solicita_doc_num})</p>
-          </div>
-        </div>
-      )}
+      {/* MODAL OFICIAL DE REPRESENTACIÓN GRÁFICA DEL EVENTO DE INVALIDACIÓN */}
+      <ModalGraficaInvalidacion
+        open={modalGraficaOpen}
+        onClose={() => setModalGraficaOpen(false)}
+        data={invalidacionSeleccionada}
+      />
     </div>
   );
 }
