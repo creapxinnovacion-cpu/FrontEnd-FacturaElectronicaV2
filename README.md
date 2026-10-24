@@ -1,73 +1,150 @@
-# SVFE Frontend - Aplicación Web y Punto de Venta (React + Vite)
+# 🇸🇻 SVFE Frontend - Aplicación Web y Punto de Venta (React 19 + Vite 7)
 
-Aplicación web moderna y responsiva para la gestión de Facturación Electrónica (SVFE V2.0 / V3.0) en El Salvador. Proporciona Punto de Venta (POS), emisión de DTEs, gestión de clientes, control de inventario y Kardex, módulo de compras y descarga de Libros de IVA contables y **Anexos oficiales del F-07 para el Ministerio de Hacienda**.
+Aplicación web moderna, responsiva y de alto rendimiento para el **Sistema de Facturación Electrónica de El Salvador (SVFE V2.0 / V3.0)**, conforme a las normativas técnicas oficiales del Ministerio de Hacienda (DGII). 
+
+Incluye Punto de Venta (POS), emisión de DTEs nacionales y de exportación, gestión integral de Eventos Oficiales (Invalidación y Retorno) con representaciones gráficas interactivas, módulo de Compras con ingesta JSON de CCF, control de Inventario/Kardex y exportación dual de **Libros de IVA contables y Anexos F-07 oficiales de Hacienda**.
 
 ---
 
-## 🚀 Módulos y Funcionalidades
+## 🚀 Módulos y Funcionalidades Principales
 
-### 1. Libros de IVA y Anexos F-07 (`/libros-iva`)
-Gestión centralizada del cumplimiento tributario del IVA:
+### 1. 🛒 Punto de Venta (POS) y Emisión de DTEs
+* **Factura de Consumidor Final (DTE-01):** Precios con IVA incluido (desglose 1.13), soporte de identificación por DUI/NIT, cliente extranjero o ventas anónimas.
+* **Comprobante de Crédito Fiscal (DTE-03):** Precios netos, cálculo automático de IVA 13% (Tributo 20), retenciones/percepciones normativas del 1%, validación estricta de NRC y NIT del receptor.
+* **Factura de Sujeto Excluido (DTE-14):** Retención del 10% de Impuesto sobre la Renta según legislación salvadoreña.
+* **Factura de Exportación (DTE-11):** Módulo dedicado para operaciones internacionales con selección de Incoterms (CAT-014), países destino (CAT-020), recintos fiscales (CAT-027), tipo de ítem de exportación y regímenes aduaneros.
+* **Búsqueda Instantánea:** Autocompletado rápido de clientes, productos y cálculo matemático fiscal en tiempo real sin descuadre de centavos.
+
+---
+
+### 2. ↩️ Gestión de Eventos Oficiales de Hacienda
+
+#### A. Eventos de Retorno (`/retornos`)
+* **Devoluciones de Mercancía:** Flujo normativo para reversión parcial o total de Facturas de Consumidor Final (DTE-01).
+* **Modal de Emisión (`ModalEmitirRetorno.jsx`):** Validación de datos del receptor, montos retornados y justificación del movimiento.
+* **Representación Gráfica Imprimible (`ModalGraficaRetorno.jsx`):** Formato oficial de comprobante de retorno con sello de recepción MH, código de generación, desglose de ítems devueltos y botón de impresión / descarga directa.
+* **Notificación al Cliente:** Disparo de correo electrónico oficial con el comprobante de retorno adjunto.
+
+#### B. Eventos de Invalidación (Anulaciones)
+* **Validación de Plazos Legales:** Consulta y verificación en tiempo real del límite legal para anular (según el tipo de documento y mes fiscal).
+* **Representación Gráfica (`ModalGraficaInvalidacion.jsx`):** Visualización interactiva e imprimible del comprobante formal de anulación con QR oficial y sello de recepción de Hacienda.
+
+---
+
+### 3. 📥 Módulo de Compras F-07 (`/compras`)
+* **Ingesta Drag & Drop de Archivos JSON:** Carga masiva de comprobantes de Crédito Fiscal (DTE-03) recibidos de proveedores.
+* **Validación Aritmética y Fiscal:**
+  * Control de sumas y consistencia de centavos en base a valores enteros.
+  * Verificación del NIT receptor para asegurar que pertenezca a la empresa.
+  * Detección y prevención automática de documentos duplicados.
+* **Exportación en 2 Clics:**
+  * **Anexo 3 de Compras (F-07):** Archivo CSV de 21 columnas exactas listo para cargar en la plataforma del Ministerio de Hacienda.
+  * **Libro de Compras Contable:** Reporte de 13 columnas estructurado para auditoría interna y contabilidad general.
+
+---
+
+### 4. 📊 Libros de IVA y Anexos F-07 (`/libros-iva`)
+Gestión y auditoría del cumplimiento tributario mensual del IVA:
 * **Modelo de Descarga Dual:**
-  * **Libros Contables Tradicionales:** Descarga en PDF (diseño horizontal listo para impresión) y CSV con encabezados legibles para conciliación y análisis financiero en Excel.
+  * **Libros Contables Tradicionales:** Exportación en PDF (formato horizontal) y CSV con encabezados legibles para conciliación interna en Excel.
   * **Anexos Oficiales F-07 (Ministerio de Hacienda):**
-    * **Anexo 1 (Contribuyentes):** CSV de 20 columnas exactas sin encabezados, DTE clase 4, sanitización sin guiones en UUID y controles, exclusión estricta de DUI vs NIT/NRC y columna final con número de anexo `1`.
-    * **Anexo 2 (Consumidor Final):** CSV de 23 columnas exactas sin encabezados, consolidación obligatoria por día (código primer DTE en Col H, código último DTE en Col I), ventas gravadas con IVA incluido y columna final con número de anexo `2`.
-* **Historial de Cierres Mensuales:** Consulta de períodos anteriores con descargas rápidas tanto en PDF como en Anexo F-07.
+    * **Anexo 1 (Contribuyentes):** CSV normativo de **20 columnas**, sin encabezados, DTE clase 4, sanitización de UUIDs y controles sin guiones, exclusión estricta de DUI vs NIT/NRC e identificación de anexo `1`.
+    * **Anexo 2 (Consumidor Final):** CSV normativo de **23 columnas**, sin encabezados, consolidación obligatoria diaria (primer y último documento emitido en el día), ventas gravadas con IVA incluido e identificación de anexo `2`.
+* **Historial de Cierres Mensuales:** Navegación por meses y años fiscales con métricas consolidadas y descargas inmediatas.
 
-### 2. Módulo de Compras F-07 (`/compras`)
-* **Ingesta Inteligente:** Carga por arrastrar y soltar (Drag & Drop) de archivos JSON de Comprobantes de Crédito Fiscal (DTE tipo 03) emitidos por proveedores.
-* **Validación Contable Aritmética:** Verificación de sumas, cálculo de centavos enteros, validación de NIT receptor y detección de documentos duplicados.
-* **Exportación Normativa:**
-  * Libro de Compras contable (13 columnas).
-  * Anexo 3 de Compras para el F-07 (21 columnas según catálogo DGII).
+---
 
-### 3. Punto de Venta (POS) y Facturación
-* Emisión rápida de Factura de Consumidor Final (DTE 01) y Crédito Fiscal (DTE 03).
-* Desglose automático de IVA (1.13 en facturas y 13% en créditos fiscales).
-* Soporte para retención y percepción del 1% y retención de Renta del 10% en Sujeto Excluido (DTE 14).
-* Búsqueda instantánea y autocompletado de clientes con NRC y NIT.
+### 5. 📦 Inventario, Productos & Kardex (`/productos` y `/kardex`)
+* Catálogo de productos y servicios con categorías personalizables, códigos de barra y precios base.
+* Control estricto de existencias e historial de movimientos en Kardex valorizado bajo Costo Promedio Ponderado.
 
-### 4. Control de Inventario & Kardex (`/productos` y `/kardex`)
-* Catálogo de productos con categorías, precios y control de existencias.
-* Registro de movimientos de inventario y visualización del costo promedio ponderado.
+---
 
-### 5. Tablero de Control Fiscal (`/dashboard`)
-* Resumen en tiempo real del mes en curso: ventas gravadas, IVA débito fiscal generado, total recaudado y documentos cancelados.
+### 6. 📈 Tablero de Control Fiscal (`/dashboard`)
+* KPIs fiscales en tiempo real: Ventas gravadas del período, débito fiscal IVA acumulado, total facturado y documentos anulados/retornados.
+* Métricas comparativas de rendimiento mensual.
 
 ---
 
 ## 🛠 Stack Tecnológico
 
-* **Framework:** React 19 + Vite 7
-* **Estilos:** Tailwind CSS 4
-* **Iconografía:** Heroicons (`@heroicons/react`)
-* **Ruteo:** React Router DOM
-* **Librerías de Utilidad:** Recharts (gráficos), jsPDF (generación de comprobantes)
+| Capa | Tecnología | Propósito |
+| :--- | :--- | :--- |
+| **Framework Base** | React 19.x + Vite 7.x | Interfaz SPA ultra rápida y modular |
+| **Estilos y UI** | Tailwind CSS 4.x | Sistema de diseño moderno, limpio y responsivo |
+| **Iconografía** | Lucide React + Heroicons | Iconos SVG optimizados y accesibles |
+| **Enrutamiento** | React Router DOM v7 | Navegación protegida y modular |
+| **Visualización** | Recharts | Gráficos estadísticos y tendencias de ventas |
+| **Cliente HTTP** | Axios | Comunicación con el backend Laravel y manejo de tokens |
+| **Manejo de Fechas** | Day.js | Procesamiento normativo de fechas ISO salvadoreñas |
+| **Almacenamiento Local** | Dexie.js (IndexedDB) | Respaldo y caché local offline-first |
 
 ---
 
-## 💻 Instalación y Ejecución Local
+## 💻 Instalación y Configuración Local
 
-### 1. Instalar dependencias
+### 1. Clonar el repositorio y entrar a la carpeta:
+```bash
+cd frontend
+```
+
+### 2. Instalar dependencias:
 ```bash
 npm install
 ```
 
-### 2. Configuración de Variables de Entorno
-Crea o edita el archivo `.env`:
+### 3. Configurar variables de entorno:
+Crear o verificar el archivo `.env`:
 ```ini
 VITE_API_URL=http://localhost:8000/api
 ```
 
-### 3. Iniciar Servidor de Desarrollo
+### 4. Iniciar en modo desarrollo:
 ```bash
 npm run dev
 ```
-La aplicación estará disponible en [http://localhost:3000](http://localhost:3000) (o el puerto asignado por Vite).
+La aplicación se levantará en [http://localhost:3000](http://localhost:3000) (o el puerto configurado por Vite).
 
-### 4. Compilar para Producción
+### 5. Compilar para producción:
 ```bash
 npm run build
 ```
-Los archivos optimizados se generarán en la carpeta `dist/`.
+Los archivos optimizados y minificados quedarán en la carpeta `dist/`.
+
+---
+
+## 📂 Estructura del Proyecto
+
+```text
+frontend/
+├── public/                  # Recursos estáticos y logos
+├── src/
+│   ├── assets/              # Archivos CSS y multimedia
+│   ├── components/          # Componentes reutilizables
+│   │   ├── DteForm.jsx              # Formulario modular de emisión de DTE
+│   │   ├── ModalEmitirRetorno.jsx   # Emisión de eventos de retorno
+│   │   ├── ModalGraficaRetorno.jsx  # Representación gráfica del comprobante de retorno
+│   │   ├── ModalGraficaInvalidacion.jsx # Comprobante de anulación con QR
+│   │   ├── Navbar.jsx               # Navegación principal
+│   │   └── ...
+│   ├── pages/               # Vistas principales de la aplicación
+│   │   ├── Dashboard.jsx            # Resumen fiscal y KPIs
+│   │   ├── DteEmitidos.jsx          # Listado y trazabilidad de DTEs
+│   │   ├── FacturaExportacion.jsx   # Emisión de DTE-11 Exportación
+│   │   ├── LibrosIva.jsx            # Libros y Anexos F-07 (Ventas)
+│   │   ├── compras.jsx              # Ingesta JSON y Anexo 3 F-07
+│   │   ├── Retornos.jsx             # Gestión de Eventos de Retorno
+│   │   ├── Anulaciones.jsx          # Gestión de Eventos de Invalidación
+│   │   └── ...
+│   ├── services/            # Servicios de conexión API (Axios)
+│   │   └── api/
+│   │       ├── dte.service.js
+│   │       ├── evento.service.js    # Invalidaciones, retornos y contingencias
+│   │       └── ...
+│   ├── utils/               # Catálogos oficiales MH y formateadores
+│   │   └── catalogos/       # CatIncoterms, CatPais, CatTipoDte, etc.
+│   ├── App.jsx              # Definición de rutas principales
+│   └── main.jsx             # Punto de entrada de React
+├── package.json
+└── vite.config.js
+```
