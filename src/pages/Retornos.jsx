@@ -1,3 +1,11 @@
+/**
+ * FACT_V2 - Frontend Facturación Electrónica (El Salvador)
+ *
+ * Copyright (c) 2026 Creapx Innovación. Todos los derechos reservados.
+ * Software propietario y confidencial de Creapx Innovación.
+ * Prohibida su copia, distribución o modificación sin autorización expresa.
+ */
+
 import React, { useState, useEffect } from "react";
 import {
   ArrowUturnLeftIcon,
